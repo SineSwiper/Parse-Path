@@ -1,4 +1,4 @@
-package Data::Path::Role::Path;
+package Parse::Path::Role::Path;
 
 # VERSION
 # ABSTRACT: Role for paths
@@ -7,8 +7,8 @@ package Data::Path::Role::Path;
 # Modules
 
 use Moo::Role;
-use MooX::Types::MooseLike 0.18;  # *Of support
-use MooX::Types::MooseLike::Base qw(Bool Str ArrayRef HashRef InstanceOf);
+use MooX::ClassAttribute;
+use Types::Standard qw(Dict Bool Str ArrayRef HashRef RegexpRef CodeRef Maybe);
 
 use sanity;
 
@@ -50,25 +50,34 @@ use overload
 #############################################################################
 # Requirements
 
-requires 'blueprint';
+requires '_build_blueprint';
 
-# hash_step_regexp
-# array_step_regexp
-# delimiter_regexp
-#
-# unescape_sub
-# unescape_quote_regexp
-#
-# delimiter_placement
-# depth_translation
-#
-# array_step_sprintf
-# hash_step_sprintf
-# hash_step_sprintf_quoted
-# quote_on_regexp
-#
-# escape_sub
-# escape_on_regexp
+# Mainly for validation of class's blueprint
+class_has blueprint => (
+   is       => 'ro',
+   builder  => 1,
+   lazy     => 1,
+   init_arg => undef,
+   isa      => Dict[
+      hash_step_regexp  => RegexpRef,
+      array_step_regexp => RegexpRef,
+      delimiter_regexp  => RegexpRef,
+
+      unescape_sub          => Maybe[CodeRef],
+      unescape_quote_regexp => RegexpRef,
+
+      delimiter_placement => HashRef[Str],
+      pos_translation     => HashRef[Str],
+
+      array_step_sprintf       => Str,
+      hash_step_sprintf        => Str,
+      hash_step_sprintf_quoted => Str,
+      quote_on_regexp          => RegexpRef,
+
+      escape_sub       => Maybe[CodeRef],
+      escape_on_regexp => RegexpRef,
+   ],
+);
 
 #############################################################################
 # Attributes
@@ -124,44 +133,58 @@ no warnings 'ambiguous';
 
 sub depth {
    my $self = shift;
-   $self->step_count ? $self->_path->[-1]{depth} : undef;
+
+   my $depth;
+   foreach my $step_hash (@{$self->_path}) {
+      my $pos = $step_hash->{pos};
+
+      # Process depth
+      if    ($pos =~ /^(\d+)$/)       { $depth  = $1; }  # absolute
+      elsif ($pos =~ /^X([+\-]\d+)$/) { $depth += $1; }  # relative
+      else {                                             # WTF is this?
+         die sprintf("Found unparsable pos: %s (step: %s)", $pos, $step_hash->{step});
+      }
+   }
+
+   return $depth;
 }
+
 sub step_count { scalar @{shift->_path}; }
 
 sub is_absolute {
    my $self = shift;
-   $self->step_count ? $self->_path->[0]{depth} !~ /^X/ : undef;
+   $self->step_count ? $self->_path->[0]{pos} !~ /^X/ : undef;
 }
 
 sub shift   {   shift @{shift->_path}; }
 sub pop     {     pop @{shift->_path}; }
 sub unshift {
    my $self = shift;
-   my $hash_steps = $self->_coerce_step([@_]);
+   my $step_hashs = $self->_coerce_step([@_]);
 
-   my $return = unshift @{$self->_path}, @$hash_steps;
-   $self->cleanup if ($self->auto_cleanup and @$hash_steps);
+   my $return = unshift @{$self->_path}, @$step_hashs;
+   $self->cleanup if ($self->auto_cleanup and @$step_hashs);
    return $return;
 }
 sub push {
    my $self = shift;
-   my $hash_steps = $self->_coerce_step([@_]);
+   my $step_hashs = $self->_coerce_step([@_]);
 
-   my $return = push @{$self->_path}, @$hash_steps;
-   $self->cleanup if ($self->auto_cleanup and @$hash_steps);
+   my $return = push @{$self->_path}, @$step_hashs;
+   $self->cleanup if ($self->auto_cleanup and @$step_hashs);
    return $return;
 }
 sub splice {
    my ($self, $offset, $length) = (shift, shift, shift);
-   my $hash_steps = $self->_coerce_step([@_]);
+   my $step_hashs = $self->_coerce_step([@_]);
 
    # Perl syntax getting retardo here...
-   my @params = ( $offset, defined $length ? ($length, @$hash_steps) : () );
+   my @params = ( $offset, defined $length ? ($length, @$step_hashs) : () );
    my @return = splice( @{$self->_path}, @params );
-   #my $return = splice( @{$self->_path}, $offset, (defined $length ? ($length, @$hash_steps) : ()) );
+   #my $return = splice( @{$self->_path}, $offset, (defined $length ? ($length, @$step_hashs) : ()) );
 
-   $self->cleanup if ($self->auto_cleanup and defined $length and @$hash_steps);
-   return \@return;
+   $self->cleanup if ($self->auto_cleanup and defined $length and @$step_hashs);
+   return (wantarray ? $return[-1] : @return);
 }
 
 sub clone {
@@ -188,8 +211,7 @@ sub _normalize {
    # For normalization, can't trust the original step, so we make new ones
    my $new_array = [];
    foreach my $item (@$path_array) {
-      my $hash_step = $self->key2hash( @$item{qw(key type depth)} );
-      push @$new_array, (ref $hash_step eq 'ARRAY') ? @$hash_step : $hash_step;
+      push @$new_array, $self->key2hash( @$item{qw(key type pos)} );
    }
 
    return $new_array;
@@ -200,44 +222,42 @@ sub cleanup {
    my $path = $self->_path;
    my $new_path = [];
 
-### FIXME: Rename depth to index or pos ###
+   my ($old_pos, $old_type);
+   foreach my $step_hash (@$path) {
+      my $full_pos = $step_hash->{pos};
 
-   my ($old_depth, $old_type);
-   foreach my $hash_step (@$path) {
-      my $full_depth = $hash_step->{depth};
-
-      # Process depth
-      my ($depth, $type);
-      if    ($full_depth =~ /^(\d+)$/)       { ($depth, $type) = ($1, 'A'); }  # absolute
-      elsif ($full_depth =~ /^X([+\-]\d+)$/) { ($depth, $type) = ($1, 'R'); }  # relative
-      else {                                                                   # WTF is this?
-         die sprintf("During path cleanup, found unparsable depth: %s (step: %s)", $full_depth, $hash_step->{step});
+      # Process pos
+      my ($pos, $type);
+      if    ($full_pos =~ /^(\d+)$/)       { ($pos, $type) = ($1, 'A'); }  # absolute
+      elsif ($full_pos =~ /^X([+\-]\d+)$/) { ($pos, $type) = ($1, 'R'); }  # relative
+      else {                                                               # WTF is this?
+         die sprintf("During path cleanup, found unparsable pos: %s (step: %s)", $full_pos, $step_hash->{step});
       }
-      $depth = int($depth);
+      $pos = int($pos);
 
       ### FIXME: Revisit this after plotting all of the path classes...
       ### We may not need this level of complexity if we are only using 0, 1, X-1, X-0, X+1
 
-      my $new_hash_step = { %$hash_step };
+      my $new_step_hash = { %$step_hash };
 
-      # The most important depth is the first one
-      unless (defined $old_depth) {
-         $old_depth = $depth;
+      # The most important pos is the first one
+      unless (defined $old_pos) {
+         $old_pos = $pos;
          $old_type  = $type;
 
-         push(@$new_path, $new_hash_step);
-         $new_hash_step->{depth} = $hash_step->{depth};
+         push(@$new_path, $new_step_hash);
+         $new_step_hash->{pos} = $step_hash->{pos};
          next;
       }
 
       # Relative is going to continue the status quo
       if ($type eq 'R') {
-         $old_depth += $depth;
-         $new_hash_step->{depth} = $old_type eq 'A' ? $old_depth : sprintf 'X%+d', $depth;
+         $old_pos += $pos;
+         $new_step_hash->{pos} = $old_type eq 'A' ? $old_pos : sprintf 'X%+d', $pos;
 
-         # Don't use the depth for placement.  Follow the chain of the index, using the array offset.
+         # Don't use the pos for placement.  Follow the chain of the index, using the array offset.
          # IOW, if it started out with something like X+3, we won't end up with a bunch of starter blanks.
-         my $array_index = $#$new_path + $depth;
+         my $array_index = $#$new_path + $pos;
 
          # If the index ends up in the negative, we can't clean it up yet.
          if ($array_index < 0) {
@@ -248,30 +268,30 @@ sub cleanup {
                die sprintf("During path cleanup, an absolute path dropped into a negative depth (full path: %s)", $self->as_string);
             }
 
-            push(@$new_path, $new_hash_step);
+            push(@$new_path, $new_step_hash);
          }
          # Backtracking
-         elsif ($depth <= 0) {
+         elsif ($pos <= 0) {
             # If the slicing would carve off past the end, just append and move on...
-            if (@$new_path < abs($depth)) {
-               push(@$new_path, $new_hash_step);
+            if (@$new_path < abs($pos)) {
+               push(@$new_path, $new_step_hash);
                next;
             }
 
-            # Just ignore zero-depth (ie: /./)
-            next unless $depth;
+            # Just ignore zero-pos (ie: /./)
+            next unless $pos;
 
             # Carve off a slice of the $new_path
-            my @back_path = splice(@$new_path, $depth);
+            my @back_path = splice(@$new_path, $pos);
 
             # If any of the steps in the path are a relative negative, we have to keep all of them.
-            if (any { $_->{depth} =~ /^X-/ } @back_path) { push(@$new_path, @back_path, $new_hash_step); }
+            if (any { $_->{pos} =~ /^X-/ } @back_path) { push(@$new_path, @back_path, $new_step_hash); }
 
             # Otherwise, we won't save this virtual step, and trash the slice.
          }
          # Moving ahead
          else {
-            $new_path->[$array_index] = $new_hash_step;
+            $new_path->[$array_index] = $new_step_hash;
          }
       }
       # Absolute is a bit more error prone...
@@ -282,8 +302,8 @@ sub cleanup {
          }
 
          # Now this is just A/A, which is rarer, but may happen with volumes
-         $new_hash_step->{depth} = $old_depth = $depth;
-         $new_path->[$depth] = $new_hash_step;
+         $new_step_hash->{pos} = $old_pos = $pos;
+         $new_path->[$pos] = $new_step_hash;
       }
    }
 
@@ -330,22 +350,22 @@ sub _coerce_step {
       die 'Found incoercible HASH step with ref values'
          if (grep { ref $_ } values %$thing);
 
-      if ( all { exists $thing->{$_} } qw(key type step depth) ) {
+      if ( all { exists $thing->{$_} } qw(key type step pos) ) {
          # We have no idea what data is in $thing, so we just soft clone it into
          # something else.  Our own methods will bypass the validation if we
          # pass the right thing, by accessing _path directly.
          return [{
-            type  => $thing->{type},
-            key   => $thing->{key},
-            step  => $thing->{step},
-            depth => $thing->{depth},
+            type => $thing->{type},
+            key  => $thing->{key},
+            step => $thing->{step},
+            pos  => $thing->{pos},
          }];
       }
 
       # It's better to have a key/type pair than a step
       if (exists $thing->{key} and exists $thing->{type}) {
-         my $hash_step = $self->key2hash( @$thing{qw(key type depth)} );
-         return [ $hash_step ];
+         my $step_hash = $self->key2hash( @$thing{qw(key type pos)} );
+         return [ $step_hash ];
       }
 
       return $self->path_str2array( $thing->{step} ) if (exists $thing->{step});
@@ -357,8 +377,8 @@ sub _coerce_step {
    elsif (ref $thing eq 'ARRAY') {
       my $path_array = [];
       foreach my $item (@$thing) {
-         my $hash_step = $self->_coerce_step($item);
-         push @$path_array, (ref $hash_step eq 'ARRAY') ? @$hash_step : $hash_step;
+         my $step_hash = $self->_coerce_step($item);
+         push @$path_array, (ref $step_hash eq 'ARRAY') ? @$step_hash : $step_hash;
       }
 
       return $path_array;
@@ -371,7 +391,7 @@ sub _coerce_step {
 }
 
 sub key2hash {
-   my ($self, $key, $type, $depth) = @_;
+   my ($self, $key, $type, $pos) = @_;
 
    # Sanity checks
    die sprintf( "type not HASH or ARRAY (found %s)", $type )
@@ -398,15 +418,15 @@ sub key2hash {
       $type eq 'HASH'  and $step !~ /^$hash_re$/ ||
       $type eq 'ARRAY' and $step !~ /^$array_re$/
    ) {
-      die sprintf( "Found %s key than didn't validate against regexp: '%s' --> '%s' (depth: %s)", $type, $key, $step, $depth // '???' );
+      die sprintf( "Found %s key than didn't validate against regexp: '%s' --> '%s' (pos: %s)", $type, $key, $step, $pos // '???' );
    }
 
    return {
-      type  => $type,
-      key   => $key,
-      step  => $step,
+      type => $type,
+      key  => $key,
+      step => $step,
       ### XXX: No +delimiter in latter case.  Not our fault; doing the best we can with the data we've got! ###
-      depth => $depth // $self->_find_depth($step),
+      pos  => $pos // $self->_find_pos($step),
    };
 }
 
@@ -415,9 +435,9 @@ sub path_str2array {
    my $path_array = [];
 
    while (length $path) {
-      my $hash_step = $self->shift_path_str(\$path, scalar @$path_array);
+      my $step_hash = $self->shift_path_str(\$path);
 
-      push(@$path_array, $hash_step);
+      push(@$path_array, $step_hash);
       die sprintf( "In path '%s', too deep down the rabbit hole, stopped at '%s'", $_[1], $path )
          if (@$path_array > 255);
    };
@@ -425,11 +445,11 @@ sub path_str2array {
    return $path_array;
 }
 
-sub _find_depth {
+sub _find_pos {
    my ($self, $step_plus_delimiter) = @_;
 
-   # Find a matching depth key
-   my $dt = $self->blueprint->{depth_translation};
+   # Find a matching pos key
+   my $dt = $self->blueprint->{pos_translation};
    my $re = first { $_ ne '#DEFAULT#' && $step_plus_delimiter =~ /$_/; } (keys %$dt);
    $re //= '#DEFAULT#';
 
@@ -437,7 +457,7 @@ sub _find_depth {
 }
 
 sub shift_path_str {
-   my ($self, $pathref, $depth) = @_;
+   my ($self, $pathref) = @_;
 
    my $orig_path = $$pathref;
 
@@ -446,24 +466,24 @@ sub shift_path_str {
    my $array_re = $bp->{array_step_regexp};
    my $delim_re = $bp->{delimiter_regexp};
 
-   my $hash_step;
+   my $step_hash;
    # Array first because hash could have zero-length string
    if ($$pathref =~ s/^(?<step>$array_re)//) {
-      $hash_step = {
+      $step_hash = {
          type => 'ARRAY',
          key  => $+{key},
          step => $+{step},
       };
    }
    elsif ($$pathref =~ s/^(?<step>$hash_re)//) {
-      $hash_step = {
+      $step_hash = {
          type => 'HASH',
          key  => $+{key},
          step => $+{step},
       };
 
       # Support escaping via double quotes
-      $hash_step->{key} = $bp->{unescape_sub}->($hash_step->{key})
+      $step_hash->{key} = $bp->{unescape_sub}->($step_hash->{key})
          if ($bp->{unescape_sub} and $+{quote} =~ $bp->{unescape_quote_regexp});
    }
    else {
@@ -472,15 +492,15 @@ sub shift_path_str {
 
    $$pathref =~ s/^($delim_re)//;
 
-   # Re-piece the step + delimiter to use with _find_depth
-   $hash_step->{depth} = $self->_find_depth( $hash_step->{step}.$1 );
+   # Re-piece the step + delimiter to use with _find_pos
+   $step_hash->{pos} = $self->_find_pos( $step_hash->{step}.$1 );
 
    # If the path is not shifting at all, then something is wrong with REs
    if (length $$pathref == length $orig_path) {
       die sprintf( "Found unshiftable step: '%s'", $$pathref );
    }
 
-   return $hash_step;
+   return $step_hash;
 }
 
 sub as_string {
@@ -490,29 +510,29 @@ sub as_string {
 
    my $str = '';
    for my $i (0 .. $self->step_count - 1) {
-      my $hash_step = $self->_path->[$i];
+      my $step_hash = $self->_path->[$i];
       my $next_step = ($i == $self->step_count - 1) ? undef : $self->_path->[$i+1];
 
-      my $d = $hash_step->{depth};
+      my $d = $step_hash->{pos};
 
       ### Left side delimiter placement
-      if    (                   exists $dlp->{$d.'L'}) { $str .= $dlp->{$d.'L'};  }  # depth-specific
-      elsif (not $next_step and exists $dlp->{'-1L'} ) { $str .= $dlp->{'-1L'};   }  # ending depth
+      if    (                   exists $dlp->{$d.'L'}) { $str .= $dlp->{$d.'L'};  }  # pos-specific
+      elsif (not $next_step and exists $dlp->{'-1L'} ) { $str .= $dlp->{'-1L'};   }  # ending pos
 
       # Add the step
-      $str .= $hash_step->{step};
+      $str .= $step_hash->{step};
 
       ### Right side delimiter placement
-      my $L = substr($hash_step->{type}, 0, 1);
-      if (exists $dlp->{$d.'R'}) {  # depth-specific (supercedes other right side options)
+      my $L = substr($step_hash->{type}, 0, 1);
+      if (exists $dlp->{$d.'R'}) {  # pos-specific (supercedes other right side options)
          $str .= $dlp->{$d.'R'};
       }
       elsif ($next_step) {          # ref-specific
          my $R = substr($next_step->{type}, 0, 1);
          $str .= $dlp->{$L.$R} if (exists $dlp->{$L.$R});
       }
-      else {                        # ending depth
-         if    (exists $dlp->{'-1R'}) { $str .= $dlp->{'-1R'}; }  # depth-specific
+      else {                        # ending pos
+         if    (exists $dlp->{'-1R'}) { $str .= $dlp->{'-1R'}; }  # pos-specific
          elsif (exists $dlp->{$L})    { $str .= $dlp->{$L};    }  # ref-specific
       }
    }
@@ -528,185 +548,70 @@ __END__
 
 = SYNOPSIS
 
-   use v5.10;
-   use Parse::Path;
+   package Parse::Path::MyNewPath;
 
-   my $path = Parse::Path->new(
-      path => 'gophers[0].food.count',
-      path_style => 'DZIL',  # default
-   );
+   use Moo;
 
-   my $step = $path->shift;  # { key => 'count', ... }
-   say $path->as_string;
-   $path->push($step, '[2]');
+   with 'Parse::Path::Role::Path';
 
-   foreach my $p (@$path) {
-      say sprintf('%-6s %s --> %s', @$p{qw(type step key)});
-   }
+   sub _build_blueprint { {
+      hash_step_regexp  => qr/[^\[\.]*/,
+      array_step_regexp => qr/\[(?<key>\d{1,5})\]/,
+      delimiter_regexp  => qr/(?:\.|(?=\[))/,
+
+      unescape_sub          => undef,
+      unescape_quote_regexp => qr/\Z.\A/,
+
+      delimiter_placement => {
+         HH => '.',
+         AH => '.',
+      },
+
+      pos_translation => {
+         '#DEFAULT#' => 'X+1',
+      },
+
+      array_step_sprintf       => '[%u]',
+      hash_step_sprintf        => '%s',
+      hash_step_sprintf_quoted => '"%s"',
+      quote_on_regexp          => qr/\W|^$/,
+
+      escape_sub       => undef,
+      escape_on_regexp => qr/\Z.\A/,
+   } }
 
 = DESCRIPTION
 
-Parse::Path is, well, a parser for paths.  File paths, object paths, URLs...  A path is whatever string that can be translated into
-hash/array keys.
+= BLUEPRINT
 
-### FIXME: Examples of usage with other Paths, step keys, etc. ###
+== hash_step_regexp
 
-= CONSTRUCTOR
+== array_step_regexp
 
-   my $path = Parse::Path->new(
-      path => $path,         # required
-      path_style => 'DZIL',  # default
-   );
+== delimiter_regexp
 
-Creates a new path object.  Parse::Path is really just a dispatcher to other Parse::Path modules, but it serves as a common API for
-all of them.
+== unescape_sub
 
-Accepts the following arguments:
+== unescape_quote_regexp
 
-== path
+== delimiter_placement
 
-   path => 'gophers[0].food.count'
+== pos_translation
 
-String used to create path.  Can also be another Parse::Path object, a step, an array of steps, an array of paths, or whatever makes
-sense.
+== array_step_sprintf
 
-This parameter is required.
+== hash_step_sprintf
 
-== path_style
+== hash_step_sprintf_quoted
 
-   path_style => 'File::Unix'
-   path_style => '=MyApp::Parse::Path::Foobar'
+== quote_on_regexp
 
-Class used to create the new path object.  With a {=} prefix, it will use that as the full class.  Otherwise, the class will be
-intepreted as {Parse::Path::$class}.
+== escape_sub
 
-Default is [DZIL|Parse::Path::DZIL].
-
-== auto_normalize
-
-   auto_normalize => 1
-
-   my $will_normalize = $path->auto_normalize;
-   $path->auto_normalize(1);
-
-If on, calls [/normalize] after any new step has been added (ie: [new|/CONSTRUCTOR], [/unshift], [/push], [/splice]).
-
-Default is off.  This attribute is read-write.
-
-== auto_cleanup
-
-   auto_cleanup => 1
-
-   my $will_cleanup = $path->auto_cleanup;
-   $path->auto_cleanup(1);
-
-If on, calls [/cleanup] after any new step has been added (ie: [new|/CONSTRUCTOR], [/unshift], [/push], [/splice]).
-
-Default is off.  This attribute is read-write.
-
-= METHODS
-
-== depth
-
-   my $depth = $path->depth;
-
-Returns path depth.  In most cases, this is the number of steps to the path, a la [/step_count].  However, relative paths might make
-this lower, or even negative.  For example:
-
-   my $path = Parse::Path->new(
-      path => '../../../foo/bar.txt',
-      path_style => 'File::Unix',
-   );
-
-   say $path->step_count;  # 5
-   say $path->depth;       # -1
-
-== step_count
-
-   my $count = $path->step_count;
-
-Returns the number of steps in the path.  Unlike [/depth], negative-seeking steps (like {..} for most file-based paths) will not lower
-the step count.
-
-== is_absolute
-
-   my $is_absolute = $path->is_absolute;
-
-Returns a true value if this path is absolute.  Hint: most paths are relative.  For example, if the following paths were
-[File::Unix|Parse::Path::File::Unix] paths:
-
-   foo/bar.txt        # relative
-   ../bar.txt         # relative
-   bar.txt            # relative
-   /home/foo/bar.txt  # absolute
-   /home/../bar.txt   # absolute (even prior to cleanup)
-
-== shift
-
-   my $step = $path->shift;
-
-Works just like the Perl version.  Removes a step from the beginning of the path and returns it.
-
-== pop
-
-   my $step = $path->pop;
-
-Works just like the Perl version.  Removes a step from the end of the path and returns it.
-
-== unshift
-
-   my $count = $path->unshift($step_or_path);
-
-Works just like the Perl version.  Adds a step (or other path-like thingy) to the beginning of the path and returns the number of new
-steps prepended.  Will also call [/cleanup] afterwards, if [/auto_cleanup] is enabled.
-
-== push
-
-   my $count = $path->push($step_or_path);
-
-Works just like the Perl version.  Adds a step (or other path-like thingy) to the end of the path and returns the number of new steps
-appended.  Will also call [/cleanup] afterwards, if [/auto_cleanup] is enabled.
-
-== splice
-
-   my @steps = $path->splice($offset, $length, $step_or_path);
-   my @steps = $path->splice($offset, $length);
-   my @steps = $path->splice($offset);
-
-   my $last_step = $path->splice($offset);
-
-Works just like the Perl version.  Removes elements designated by the offset and length, and replaces them with the new step/path.
-Returns the steps removed in list context, or the last step removed in scalar context.  Will also call [/cleanup] afterwards, if
-[/auto_cleanup] is enabled.
-
-== clone
-
-   my $same_path = $path->clone;
-
-Clones the path.  Returns the same type of object.
-
-== normalize
-
-== cleanup
-
-== key2hash
-
-== path_str2array
-
-== shift_path_str
-
-== as_string
-### NOTE: basically the opposite of path_str2array ###
-
-== blueprint
-
-= OVERLOADS
-
-= MAKING YOUR OWN
+== escape_on_regexp
 
 = CAVEATS
 
-== Absolute paths and step removal
 
 = SEE ALSO
 

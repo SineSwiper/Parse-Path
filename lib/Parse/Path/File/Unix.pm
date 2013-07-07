@@ -17,7 +17,7 @@ no warnings 'uninitialized';
 
 with 'Parse::Path::Role::Path';
 
-sub blueprint { {
+sub _build_blueprint { {
    hash_step_regexp => qr{
       # Illegal characters are a mere \0 and /
       (?<key>[^/\0]*)
@@ -35,7 +35,7 @@ sub blueprint { {
       HH   => '/',
    },
 
-   depth_translation => {
+   pos_translation => {
       qr{^/+$}     => 0,
       qr{^\.\./*$} => 'X-1',
       qr{^\./*$}   => 'X-0',

@@ -19,7 +19,7 @@ no warnings 'uninitialized';
 
 with 'Parse::Path::Role::Path';
 
-sub blueprint { {
+sub _build_blueprint { {
    hash_step_regexp => qr/
       # Standard character (or a zero-length with a delimiter)
       (?<key>\w+|(?=\.))|
@@ -49,7 +49,7 @@ sub blueprint { {
       AH => '.',
    },
 
-   depth_translation => {
+   pos_translation => {
       '#DEFAULT#' => 'X+1',
    },
 

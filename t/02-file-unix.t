@@ -1,4 +1,3 @@
-use Parse::Path;
 use Test::More tests => 11;
 
 use lib 't/lib';
@@ -6,10 +5,13 @@ use PathTest;
 
 use utf8;
 
-my ($hash, $tree);
-my $ppo = new_ok('Parse::Path', [ path_style => 'File::Unix' ]);
+my $opts = {
+   style => 'File::Unix',
+   auto_normalize => 1,
+   auto_cleanup   => 1,
+};
 
-test_pathing($ppo,
+test_pathing($opts,
    [qw(
       /
       ..

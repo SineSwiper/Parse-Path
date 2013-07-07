@@ -1,13 +1,11 @@
-use Parse::Path;
 use Test::More tests => 11;
 
 use lib 't/lib';
 use PathTest;
 
-my ($hash, $tree);
-my $ppo = new_ok('Parse::Path');
+my $opts = {};
 
-test_pathing($ppo,
+test_pathing($opts,
    [qw(
       a[4]
       a[1].b.c.d
@@ -23,7 +21,7 @@ test_pathing($ppo,
    'Basic',
 );
 
-test_pathing($ppo,
+test_pathing($opts,
    [qw(
       '[4]' => 2,
       '[1].b.c.d' => 3,
@@ -39,7 +37,7 @@ test_pathing($ppo,
    'Array-is-first',
 );
 
-test_pathing($ppo,
+test_pathing($opts,
    [
       q{"This can't be a terrible mistake"[0].value},
       q{'"Oh, but it can..." said the spider'.[0].value},
@@ -51,7 +49,7 @@ test_pathing($ppo,
    'Quoted',
 );
 
-test_both_ways($ppo,
+test_pathing($opts,
    [
       'a.b...c[0].""."".' . "''",
    ],
