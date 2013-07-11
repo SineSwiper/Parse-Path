@@ -8,13 +8,14 @@ package Parse::Path::Role::Path;
 
 use Moo::Role;
 use MooX::ClassAttribute;
-use Types::Standard qw(Dict Bool Str ArrayRef HashRef RegexpRef CodeRef Maybe);
+use Types::Standard qw(Dict Bool Str Int Enum ArrayRef HashRef RegexpRef CodeRef Maybe);
 
 use sanity;
 
 use Scalar::Util qw( blessed );
 use Storable qw( dclone );
 use List::AllUtils qw( first all any );
+use Sub::Name;
 
 use namespace::clean;
 no warnings 'uninitialized';
@@ -23,28 +24,74 @@ no warnings 'uninitialized';
 # Overloading
 
 use overload
-   # assign
+   # with_assign  (XXX: No idea why it can't use '0+')
+   '+'  => subname(_overload_plus => sub {
+      my ($self, $thing, $swap) = @_;
+      $self->depth + $thing;
+   }),
+   '-'  => subname(_overload_minus => sub {
+      my ($self, $thing, $swap) = @_;
+      $swap ?
+         $thing - $self->depth :
+         $self->depth - $thing
+      ;
+   }),
 
-   ### FIXME: assign subs shouldn't modify its assignment :(
-   #'.='   => sub {
-   #   my ($self, $thing) = @_;
-   #   $self->push($thing);
-   #},
+   # assign
+   '.='   => subname(_overload_concat => sub {
+      my ($self, $thing) = @_;
+      $self->push($thing);
+      $self;
+   }),
 
    # 3way_comparison
-   #'cmp'  ### TODO
+   '<=>'  => subname(_overload_cmp_num => sub {
+      my ($self, $thing, $swap) = @_;
+      $swap ?
+         $thing <=> $self->depth :
+         $self->depth <=> $thing
+      ;
+   }),
+   'cmp'  => subname(_overload_cmp => sub {
+      my ($self, $thing, $swap) = @_;
+
+      # If both of these are Parse::Path objects, run through the key comparisons
+      if (blessed $thing and $thing->does('Parse::Path::Role::Path')) {
+         ($self, $thing) = ($thing, $self) if $swap;
+
+         my ($cmp, $i) = (0, 0);
+         for (; $i <= $#{$self->_path} and $i <= $#{$thing->_path}; $i++) {
+            my ($stepA, $stepB) = ($self->_path->[$i], $thing->_path->[$i]);
+            my $cmp = $stepA->{type} eq 'ARRAY' && $stepB->{type} eq 'ARRAY' ?
+               $stepA->{key} <=> $stepB->{key} :
+               $stepA->{key} cmp $stepB->{key}
+            ;
+
+            return $cmp if $cmp;
+         }
+
+         # Now it's down to step counts
+         return $self->step_count <=> $thing->step_count;
+      }
+
+      # Fallback to string comparison
+      return $swap ?
+         $thing cmp $self->as_string :
+         $self->as_string cmp $thing
+      ;
+   }),
 
    # conversion
-   'bool' => sub { !!shift->step_count },
-   '""'   => sub { shift->as_string    },
-   '0+'   => sub { shift->step_count   },
-   #'qr'  ### TODO
+   'bool' => subname(_overload_bool   => sub { !!shift->step_count }),
+   '""'   => subname(_overload_string => sub { shift->as_string }),
+   '0+'   => subname(_overload_numify => sub { shift->depth }),
 
    # dereferencing
-   '@{}'  => sub { @{ dclone(shift->_path) } },
+   '${}'  => subname(_overload_scalar => sub { \(shift->as_string) }),
+   '@{}'  => subname(_overload_array  => sub { shift->as_array }),
 
    # special
-   '='    => sub { shift->clone }
+   '='    => subname(_overload_clone  => sub { shift->clone })
 ;
 
 #############################################################################
@@ -53,9 +100,9 @@ use overload
 requires '_build_blueprint';
 
 # Mainly for validation of class's blueprint
-class_has blueprint => (
+class_has _blueprint => (
    is       => 'ro',
-   builder  => 1,
+   builder  => '_build_blueprint',
    lazy     => 1,
    init_arg => undef,
    isa      => Dict[
@@ -82,9 +129,15 @@ class_has blueprint => (
 #############################################################################
 # Attributes
 
+# NOTE: hot attr; bypass isa
 has _path => (
    is        => 'rw',
-   isa       => ArrayRef[HashRef[Str]],
+   #isa       => ArrayRef[Dict[
+   #   type => Enum[qw( ARRAY HASH )],
+   #   key  => Str,
+   #   step => Str,
+   #   pos  => Int,
+   #]],
    predicate => 1,
 );
 
@@ -131,6 +184,8 @@ sub BUILD {
 # XXX: The array-based methods makes internal CORE calls ambiguous
 no warnings 'ambiguous';
 
+sub step_count { scalar @{shift->_path}; }
+
 sub depth {
    my $self = shift;
 
@@ -149,15 +204,16 @@ sub depth {
    return $depth;
 }
 
-sub step_count { scalar @{shift->_path}; }
-
 sub is_absolute {
    my $self = shift;
    $self->step_count ? $self->_path->[0]{pos} !~ /^X/ : undef;
 }
 
-sub shift   {   shift @{shift->_path}; }
-sub pop     {     pop @{shift->_path}; }
+sub as_array  { dclone(shift->_path) }
+sub blueprint { dclone(shift->_blueprint) }
+
+sub shift   { {%{ shift @{shift->_path} }} }
+sub pop     { {%{   pop @{shift->_path} }} }
 sub unshift {
    my $self = shift;
    my $step_hashs = $self->_coerce_step([@_]);
@@ -184,8 +240,9 @@ sub splice {
    #my $return = splice( @{$self->_path}, $offset, (defined $length ? ($length, @$step_hashs) : ()) );
 
    $self->cleanup if ($self->auto_cleanup and defined $length and @$step_hashs);
-   return (wantarray ? $return[-1] : @return);
+   return (wantarray ? {%{ $return[-1] }} : @{ dclone(\@return) });
 }
+
 
 sub clone {
    my $self = $_[0];
@@ -397,7 +454,7 @@ sub key2hash {
    die sprintf( "type not HASH or ARRAY (found %s)", $type )
       unless ($type =~ /^HASH$|^ARRAY$/);
 
-   my $bp = $self->blueprint;
+   my $bp = $self->_blueprint;
    my $hash_re  = $bp->{hash_step_regexp};
    my $array_re = $bp->{array_step_regexp};
 
@@ -449,7 +506,7 @@ sub _find_pos {
    my ($self, $step_plus_delimiter) = @_;
 
    # Find a matching pos key
-   my $dt = $self->blueprint->{pos_translation};
+   my $dt = $self->_blueprint->{pos_translation};
    my $re = first { $_ ne '#DEFAULT#' && $step_plus_delimiter =~ /$_/; } (keys %$dt);
    $re //= '#DEFAULT#';
 
@@ -461,7 +518,7 @@ sub shift_path_str {
 
    my $orig_path = $$pathref;
 
-   my $bp = $self->blueprint;
+   my $bp = $self->_blueprint;
    my $hash_re  = $bp->{hash_step_regexp};
    my $array_re = $bp->{array_step_regexp};
    my $delim_re = $bp->{delimiter_regexp};
@@ -487,7 +544,7 @@ sub shift_path_str {
          if ($bp->{unescape_sub} and $+{quote} =~ $bp->{unescape_quote_regexp});
    }
    else {
-      die sprintf( "Found unparsable step: '%s'", $_[1], $$pathref );
+      die sprintf( "Found unparsable step: '%s'", $$pathref );
    }
 
    $$pathref =~ s/^($delim_re)//;
@@ -506,7 +563,7 @@ sub shift_path_str {
 sub as_string {
    my $self = $_[0];
 
-   my $dlp = $self->blueprint->{delimiter_placement};
+   my $dlp = $self->_blueprint->{delimiter_placement};
 
    my $str = '';
    for my $i (0 .. $self->step_count - 1) {

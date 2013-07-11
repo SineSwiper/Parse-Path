@@ -32,13 +32,13 @@ sub new {
       elsif (ref $arg eq 'HASH')  { %opts = %$arg; }
       else                        { $opts{path} = $arg; }
    }
-   # NOTE: if @_ == 0, it gets passed to DZIL and fails with its own isa error
+   # NOTE: if @_ == 0, it gets passed to DZIL and fails with its own path attr error
    else { %opts = @_; }
 
    my $style = delete $opts{style} // 'DZIL';
    $style = "Parse::Path::$style" unless ($style =~ s/^\=//);  # NOTE: kill two birds with one stone
 
-   # Load+create the path class
+   # Load+create the path
    return use_module($style)->new(%opts);
 }
 
@@ -139,6 +139,13 @@ Default is off.  This attribute is read-write.
 
 = METHODS
 
+== step_count
+
+   my $count = $path->step_count;
+
+Returns the number of steps in the path.  Unlike [/depth], negative-seeking steps (like {..} for most file-based paths) will not lower
+the step count.
+
 == depth
 
    my $depth = $path->depth;
@@ -157,13 +164,6 @@ this lower, or even negative.  For example:
 Despite the similarity to the pos value of a step hash, this method doesn't tell you whether it's relative or absolute.  Use
 [/is_absolute] for that.
 
-== step_count
-
-   my $count = $path->step_count;
-
-Returns the number of steps in the path.  Unlike [/depth], negative-seeking steps (like {..} for most file-based paths) will not lower
-the step count.
-
 == is_absolute
 
    my $is_absolute = $path->is_absolute;
@@ -177,17 +177,31 @@ Returns a true value if this path is absolute.  Hint: most paths are relative.  
    /home/foo/bar.txt  # absolute
    /home/../bar.txt   # absolute (even prior to cleanup)
 
+== as_string
+
+   my $path_str = $path->as_string;
+
+Returns the string form of the path.  This involves taking the individual step strings of the path and placing the delimiters in the
+right place.
+
+== as_array
+
+   my $step_hashes = $path->as_array;
+
+Returns the full path as an arrayref of step hashes.  The steps are cloned for integrity.  If you want a simplier representation of
+the path, consider [/as_string].
+
 == shift
 
    my $step_hash = $path->shift;
 
-Works just like the Perl version.  Removes a step from the beginning of the path and returns it.
+Works just like the Perl version.  Removes a step from the beginning of the path and returns it.  The step is cloned for integrity.
 
 == pop
 
    my $step_hash = $path->pop;
 
-Works just like the Perl version.  Removes a step from the end of the path and returns it.
+Works just like the Perl version.  Removes a step from the end of the path and returns it.  The step is cloned for integrity.
 
 == unshift
 
@@ -212,14 +226,14 @@ appended.  Will also call [/cleanup] afterwards, if [/auto_cleanup] is enabled.
    my $last_step_hash = $path->splice($offset);
 
 Works just like the Perl version.  Removes elements designated by the offset and length, and replaces them with the new step/path.
-Returns the steps removed in list context, or the last step removed in scalar context.  Will also call [/cleanup] afterwards, if
-[/auto_cleanup] is enabled.
+The steps are cloned for integrity.  Returns the steps removed in list context, or the last step removed in scalar context.  Will
+also call [/cleanup] afterwards, if [/auto_cleanup] is enabled.
 
 == clone
 
    my $same_path = $path->clone;
 
-Clones the path.  Returns the same type of object.
+Clones the path object and returns it.
 
 == normalize
 
@@ -235,6 +249,8 @@ another way, this will make a "round trip" of string-to-path-to-string work comm
    a.b...c[0].""."".''      # Before normalize
    a.b.""."".c[0].""."".""  # After normalize
 
+Returns itself for chaining.
+
 == cleanup
 
    $path->cleanup;
@@ -249,13 +265,6 @@ following paths were [File::Unix|Parse::Path::File::Unix] paths:
    ./command             # command
 
 Returns itself for chaining.
-
-== as_string
-
-   my $path_str = $path->as_string;
-
-Returns the string form of the path.  This involves taking the individual step strings of the path and placing the delimiters in the
-right place.
 
 = UTILITY METHODS
 
@@ -293,10 +302,56 @@ Parse::Path's use cases.
 Provides access to the blueprint for parsing the path style.  More informaton about what this hashref contains in the [role
 documentation|Parse::Path::Role::Path].
 
-Technically, the blueprint hashref is editable, but changing it is highly discouraged, and may break other paths!  Create your own
-Path class if you need to change the specs.
+Cloned for sanity.  Create your own Path class if you need to change the specs.
 
 = OVERLOADS
+
+In addition to its standard methods, Parse::Path also has several [overloads|overload] that are useful:
+
+== String Concatenation (.=)
+
+   $path .= 'q.r.s[1]';
+   $path .= [qw( q r s[1] )];
+
+Modifies the path by calling [/push] on the RHS thing.
+
+== Numeric Comparisons
+
+   $pathA <  $pathB
+   $pathA <= $pathB
+   $pathB >  $pathA
+   $pathB >= $pathA
+   $pathA == $pathA
+   $pathA != $pathB
+   $pathA <=> $pathB
+
+Uses [/depth] for the numeric comparison.  Still works in cases of a non-path on one side.
+
+== String Comparisons
+
+   $pathA lt $pathB
+   $pathA le $pathB
+   $pathB gt $pathA
+   $pathB ge $pathA
+   $pathA eq $pathA
+   $pathA ne $pathB
+   $pathA cmp $pathB
+
+If both sides are P:P objects, each key of the path is compared separately until a difference is found.  This effectively bypasses
+delimiters as an obstacle for path comparisons.  If a step is found to be an ARRAY type on both sides, a numeric comparison ({<=>}) is
+done.  Mismatched step types are allowed (and checked with {cmp}), so sanity check your paths if this isn't desired.
+
+If either side is a non-path, this will fallback to a simple path string comparison.
+
+== Other overloads
+
+   !$path   # !$path->step_count  (ie: does the path contain anything?)
+   "$path"  # $path->as_string
+   0+$path  # $path->depth
+   $$path   # $path->as_string
+   @$path   # @{ $path->as_array }
+
+These all work pretty much as you'd expect them to.
 
 = MAKING YOUR OWN
 

@@ -1,7 +1,7 @@
-package Parse::Path::File::Unix;
+package Parse::Path::PerlClass;
 
 # VERSION
-# ABSTRACT: /UNIX/file/path/support
+# ABSTRACT: Perl::Class::path::support
 
 #############################################################################
 # Modules
@@ -19,27 +19,22 @@ with 'Parse::Path::Role::Path';
 
 sub _build_blueprint { {
    hash_step_regexp => qr{
-      # Illegal characters are a mere \0 and /
-      (?<key>[^/\0]*)
+      (?<key>[a-zA-Z_]\w*)
    }x,
 
    array_step_regexp   => qr/\Z.\A/,  # no-op; arrays not supported
-   delimiter_regexp    => qr{/+},     # + to capture repetitive slashes, like foo////bar
+   delimiter_regexp    => qr{::|'},
 
    # no support for escapes
    unescape_sub          => undef,
    unescape_quote_regexp => qr/\Z.\A/,
 
    delimiter_placement => {
-      '0R' => '/',
-      HH   => '/',
+      HH => '::',
    },
 
    pos_translation => {
-      qr{^/+$}     => 0,
-      qr{^\.\./*$} => 'X-1',
-      qr{^\./*$}   => 'X-0',
-      '#DEFAULT#'  => 'X+1',
+      '#DEFAULT#' => 'X+1',
    },
 
    array_step_sprintf       => '',

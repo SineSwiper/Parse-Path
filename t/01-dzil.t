@@ -1,4 +1,4 @@
-use Test::More tests => 11;
+use Test::More tests => 42;
 
 use lib 't/lib';
 use PathTest;
@@ -23,10 +23,10 @@ test_pathing($opts,
 
 test_pathing($opts,
    [qw(
-      '[4]' => 2,
-      '[1].b.c.d' => 3,
-      '[3].turnip' => 4,
-      '[0][1][1][1][1].[2].too.long
+      [4]
+      [1].b.c.d
+      [3].turnip
+      [0][1][1][1][1].[2].too.long
    )],
    [qw(
       [4]
@@ -44,9 +44,33 @@ test_pathing($opts,
    ],
    [
       q{"This can't be a terrible mistake"[0].value},
+      q{'"Oh, but it can..." said the spider'[0].value},
+   ],
+   'Quoted without normalize',
+);
+
+test_pathing($opts,
+   [
+      'a.b...c[0].""."".' . "''",
+   ],
+   [
+      'a.b...c[0].""."".' . "''",
+   ],
+   'Zero-length keys without normalize',
+);
+
+$opts = { auto_normalize => 1 };
+
+test_pathing($opts,
+   [
+      q{"This can't be a terrible mistake"[0].value},
+      q{'"Oh, but it can..." said the spider'.[0].value},
+   ],
+   [
+      q{"This can't be a terrible mistake"[0].value},
       q{"\"Oh, but it can...\" said the spider"[0].value},
    ],
-   'Quoted',
+   'Quoted with normalize',
 );
 
 test_pathing($opts,
@@ -56,5 +80,5 @@ test_pathing($opts,
    [
       'a.b.""."".c[0].""."".""',
    ],
-   'Zero-length keys',
+   'Zero-length keys with normalize',
 );

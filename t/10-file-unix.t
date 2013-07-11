@@ -1,9 +1,14 @@
-use Test::More tests => 11;
+use Test::More tests => 30;
 
 use lib 't/lib';
 use PathTest;
 
 use utf8;
+
+# Suppressing the "Wide character" warnings from Test::Builder is harder than it sounds...
+#no warnings 'utf8';
+#binmode STDOUT, ':utf8';
+#$ENV{PERL_UNICODE} = 'S';
 
 my $opts = {
    style => 'File::Unix',
@@ -38,5 +43,5 @@ test_pathing($opts,
    ),
       '/root/FILENäME NIGHTMäRE…/…/ﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ.conf',
    ],
-   'Basic UNIX path set',
+   'Basic',
 );

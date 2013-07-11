@@ -1,7 +1,7 @@
 package Parse::Path::DZIL;
 
 # VERSION
-# ABSTRACT: dist.ini-style paths for DZIL
+# ABSTRACT: "dist.ini-style".paths.for.DZIL[0]
 
 #############################################################################
 # Modules
