@@ -1,14 +1,14 @@
-use Test::More tests => 30;
+use Test::More tests => 32;
 
 use lib 't/lib';
 use PathTest;
 
 use utf8;
 
-# Suppressing the "Wide character" warnings from Test::Builder is harder than it sounds...
-#no warnings 'utf8';
-#binmode STDOUT, ':utf8';
-#$ENV{PERL_UNICODE} = 'S';
+my $builder = Test::More->builder;
+binmode $builder->output,         ':utf8';
+binmode $builder->failure_output, ':utf8';
+binmode $builder->todo_output,    ':utf8';
 
 my $opts = {
    style => 'File::Unix',
@@ -44,4 +44,16 @@ test_pathing($opts,
       '/root/FILENäME NIGHTMäRE…/…/ﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ.conf',
    ],
    'Basic',
+);
+
+test_pathing_failures($opts,
+   [
+      "/home/asd\0"."asd/",
+      '/../home',
+   ],
+   [
+      qr/^Found unshiftable step/,
+      qr/^During path cleanup, an absolute path dropped into a negative depth/,
+   ],
+   'Fails',
 );

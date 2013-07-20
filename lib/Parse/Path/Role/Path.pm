@@ -243,14 +243,29 @@ sub splice {
    return (wantarray ? {%{ $return[-1] }} : @{ dclone(\@return) });
 }
 
+sub clear {
+   my $self = shift;
+   $self->_path([]);
+   return $self;
+}
+sub replace {
+   my $self = shift;
+   $self->clear->push(@_);
+}
 
 sub clone {
-   my $self = $_[0];
+   my $self = shift;
 
-   $self->new(
+   # if an argument is passed, assume it's a path
+   my %path_args = @_ ? (
+      path  => shift,
+   ) : (
       _path => dclone($self->_path),
       path  => '',  # ignored
+   );
 
+   $self->new(
+      %path_args,
       auto_normalize => $self->auto_normalize,
       auto_cleanup   => $self->auto_cleanup,
    );
@@ -292,8 +307,7 @@ sub cleanup {
       }
       $pos = int($pos);
 
-      ### FIXME: Revisit this after plotting all of the path classes...
-      ### We may not need this level of complexity if we are only using 0, 1, X-1, X-0, X+1
+      ### XXX: We may not need this level of complexity if we are only using 0, 1, X-1, X-0, X+1
 
       my $new_step_hash = { %$step_hash };
 
@@ -319,8 +333,6 @@ sub cleanup {
          # If the index ends up in the negative, we can't clean it up yet.
          if ($array_index < 0) {
             if ($old_type eq 'A') {
-               # FIXME: Solve for C:\.. (which should error sooner)
-
                # An absolute path should never go into the negative index (ie: /..)
                die sprintf("During path cleanup, an absolute path dropped into a negative depth (full path: %s)", $self->as_string);
             }
@@ -358,7 +370,7 @@ sub cleanup {
             die sprintf("During path cleanup, a relative path found an illegal absolute step (full path: %s)", $self->as_string);
          }
 
-         # Now this is just A/A, which is rarer, but may happen with volumes
+         # Now this is just A/A, which is rarer, but still legal
          $new_step_hash->{pos} = $old_pos = $pos;
          $new_path->[$pos] = $new_step_hash;
       }
@@ -382,10 +394,6 @@ sub _coerce_step {
 
    # Another DP path object
    elsif (blessed $thing and $thing->does('Parse::Path::Role::Path')) {
-      # At the very least, we need to make sure our depths are cleaned up.
-      $self ->cleanup;
-      $thing->cleanup;
-
       # If the class is the same, it's the same type of path and we can do a
       # direct transfer.  And only if the path is normalized, or we don't care
       # about it.
@@ -612,7 +620,7 @@ __END__
    with 'Parse::Path::Role::Path';
 
    sub _build_blueprint { {
-      hash_step_regexp  => qr/[^\[\.]*/,
+      hash_step_regexp  => qr/(?<key>\w+)|(?<quote>")(?<key>[^"]+)(?<quote>")/,
       array_step_regexp => qr/\[(?<key>\d{1,5})\]/,
       delimiter_regexp  => qr/(?:\.|(?=\[))/,
 
@@ -639,33 +647,82 @@ __END__
 
 = DESCRIPTION
 
+This is the base role for [Parse::Path] and contains 95% of the code.  The idea behind the path classes is that they should be able to
+get by with a single blueprint and little to no changes to the main methods.
+
 = BLUEPRINT
+
+The blueprint [class attribute|MooX::ClassAttribute] is a hashref of various properties that detail how the path is parsed and put
+back together.  All properties are required, though some can be turned off.
 
 == hash_step_regexp
 
+   hash_step_regexp => qr/(?<key>\w+)|(?<quote>")(?<key>[^"]+)(?<quote>")/
+
 == array_step_regexp
+
+   array_step_regexp => qr/\[(?<key>\d{1,5})\]/
+   array_step_regexp => qr/\Z.\A/   # no-op; turn off array support
 
 == delimiter_regexp
 
+   delimiter_regexp => qr/(?:\.|(?=\[))/
+
 == unescape_sub
+
+   unescape_sub => \&String::Escape::unbackslash
+   unescape_sub => undef  # turn off unescape support
 
 == unescape_quote_regexp
 
+   unescape_quote_regexp => qr/\"/
+   unescape_quote_regexp => qr/\Z.\A/  # no-op; turn off unescape support
+
 == delimiter_placement
+
+   delimiter_placement => {
+      '0R' => '/',
+      HH   => '.',
+      AH   => '.',
+   },
 
 == pos_translation
 
+   pos_translation => {
+      qr{^/+$}     => 0,
+      qr{^\.\./*$} => 'X-1',
+      qr{^\./*$}   => 'X-0',
+      '#DEFAULT#'  => 'X+1',
+   },
+
 == array_step_sprintf
+
+   array_step_sprintf => '[%u]'
+   array_step_sprintf => ''  # turn off array support
 
 == hash_step_sprintf
 
+   hash_step_sprintf => '%s'
+
 == hash_step_sprintf_quoted
+
+   hash_step_sprintf_quoted => '"%s"'
+   hash_step_sprintf_quoted => '%s'  # no quoting
 
 == quote_on_regexp
 
+   quote_on_regexp => qr/\W|^$/
+   quote_on_regexp => qr/\Z.\A/  # no-op; turn off quoting
+
 == escape_sub
 
+   escape_sub => \&String::Escape::backslash
+   escape_sub => undef  # turn off escape support
+
 == escape_on_regexp
+
+   escape_on_regexp => qr/\W|^$/
+   escape_on_regexp => qr/\Z.\A/  # no-op; turn off escape support
 
 = CAVEATS
 

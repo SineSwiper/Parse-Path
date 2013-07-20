@@ -24,6 +24,7 @@ sub _build_blueprint { {
 
    array_step_regexp   => qr/\Z.\A/,  # no-op; arrays not supported
    delimiter_regexp    => qr{::|'},
+   delimiter_regexp    => qr{(?:\:\:|')(?=[a-zA-Z_])},  # no dangling delimiters
 
    # no support for escapes
    unescape_sub          => undef,

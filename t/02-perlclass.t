@@ -1,4 +1,4 @@
-use Test::More tests => 18;
+use Test::More tests => 25;
 
 use lib 't/lib';
 use PathTest;
@@ -25,4 +25,27 @@ test_pathing($opts,
       K2P::Class::Fun
    )],
    'Basic',
+);
+
+test_pathing_failures($opts,
+   [qw(
+      Perl:Class
+      ::pragma
+      K2P::
+      'K2P'Foo'Bar'Baz'
+      K2P::Foo:Bar::Baz
+      K2P'Class::Fun'
+   ),
+      '   K2P::Foo::Bar::Baz   ',
+   ],
+   [
+      qr/^Found unparsable step/,
+      qr/^Found unparsable step/,
+      qr/^Found unparsable step/,
+      qr/^Found unparsable step/,
+      qr/^Found unparsable step/,
+      qr/^Found unparsable step/,
+      qr/^Found unparsable step/,
+   ],
+   'Fails',
 );

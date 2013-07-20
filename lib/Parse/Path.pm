@@ -229,11 +229,32 @@ Works just like the Perl version.  Removes elements designated by the offset and
 The steps are cloned for integrity.  Returns the steps removed in list context, or the last step removed in scalar context.  Will
 also call [/cleanup] afterwards, if [/auto_cleanup] is enabled.
 
+== clear
+
+   $path->clear;
+
+Clears out the path.
+
+Returns itself for chaining.
+
+== replace
+
+   $path->replace;
+
+Replaces the path with a new one.  Basically just sugar for [/clear] + [/push].  Unlike the argument form of [/clone], this retains the
+same object and just replaces the internal path.
+
+Returns the number of new steps created.
+
 == clone
 
-   my $same_path = $path->clone;
+   my $same_path    = $path->clone;
+   my $similar_path = $path->clone($new_path);
 
 Clones the path object and returns it.
+
+Optionally takes another path (object or string or whatever) and puts that path into the clone.  This is handy if you want to use the
+same options and class, but just want a different path.
 
 == normalize
 
@@ -353,22 +374,83 @@ If either side is a non-path, this will fallback to a simple path string compari
 
 These all work pretty much as you'd expect them to.
 
-= MAKING YOUR OWN
+= CONVERSION
+
+Different path styles can be used with ease.  Convert Unix paths to Window paths?  No problem:
+
+   my $unix_path = Parse::Path->new(
+      path  => '/root/tmp/file.txt',
+      style => 'File::Unix'
+   );
+
+   my $win_path  = Parse::Path->new(
+      path   => $unix_path,
+      style  => 'File::Win32',
+   );
+
+   $win_path->as_string;  # \root\tmp\file.txt
+   $win_path->volume('C');
+   $win_path->as_string;  # C:\root\tmp\file.txt
+
+   $win_path->splice(-1, 1, '..\foobar.gif');
+   $win_path->cleanup->as_string;  # C:\root\foobar.gif
+
+   $unix_path->replace($win_path);
+   $unix_path->as_string;  # /root/foobar.gif
 
 = CAVEATS
 
 == Absolute paths and step removal
 
+Steps can be removed from the path as needed, but keep in mind that [/cleanup] doesn't get called methods like [/shift], even if
+[/auto_cleanup] is set.  This doesn't make a difference on absolute paths as the depth they are given is permanent.  Appending two
+absolute paths may end up cancelling each other out:
+
+   my $path = Parse::Path->new(
+      path  => '/root/tmp/file.txt',
+      style => 'File::Unix',
+      auto_cleanup => 1,
+   );
+
+   $path->shift;  # remove the blank root
+   $path->shift;  # now a dangling 'tmp/file.txt', tied to position 2
+   $path->unshift('/home/bbyrd');
+   $path->as_string;  # /home/tmp/file.txt
+
+This problem can be sidestepped by using the string forms:
+
+   $path->shift;
+   $path->shift;  # tmp/file.txt
+   $path->replace( [ '/home/bbyrd', $path->as_string ] );
+   $path->as_string;  # /home/bbyrd/tmp/file.txt
+
+This may be fixed in a later release.
+
 == Normalization of splits
 
-== Playing with two different Path styles
+While [/auto_normalize] controls normalization of steps, delimiter normalization is still automatic.  For example:
+
+   my $path = Parse::Path->new(
+      path  => 'foo//////bar.txt',
+      style => 'File::Unix',
+   );
+   say $path->as_string;  # foo/bar.txt
+
+This is because delimiters are not actually stored anywhere after parsing.  The [/as_string] method takes the hash steps and re-adds
+the delimiters, per rules on the blueprint of the path class.  (See [Parse::Path::Role::Path/delimiter_placement].)
 
 == Sparse arrays and memory usage
 
-= SEE ALSO
+Since arrays within paths are based on indexes, there's a potential security issue with large indexes causing abnormal memory usage
+with certain modules that would use these paths.  In Perl, these two arrays would have drastically different memory footprints:
 
-### Ruler ########################################################################################################################12345
+   my @small;
+   $small[0] = 1;
 
-Other modules...
+   my @large;
+   $large[999999] = 1;
+
+This can be mitigated by making sure the Path style you use will limit the total digits for array indexes.  [Parse::Path] handles
+this on all of its paths, but it's something to be aware of if you create your own path classes.
 
 =end wikidoc

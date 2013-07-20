@@ -1,4 +1,4 @@
-use Test::More tests => 42;
+use Test::More tests => 46;
 
 use lib 't/lib';
 use PathTest;
@@ -81,4 +81,21 @@ test_pathing($opts,
       'a.b.""."".c[0].""."".""',
    ],
    'Zero-length keys with normalize',
+);
+
+test_pathing_failures($opts,
+   [qw(
+      123[hash].1111
+      "foo".["bar"]
+      aaa[999999999].bbb
+   ),
+      '   aaa.bbb.ccc[1]   ',
+   ],
+   [
+      qr/^Found unparsable step/,
+      qr/^Found unparsable step/,
+      qr/^Found unparsable step/,
+      qr/^Found unparsable step/,
+   ],
+   'Fails',
 );
