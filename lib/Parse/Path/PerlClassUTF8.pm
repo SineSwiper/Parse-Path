@@ -29,24 +29,20 @@ sub _build_blueprint { {
    delimiter_regexp    => qr{(?:\:\:|')(?=\p{XID_Start})},  # no dangling delimiters
 
    # no support for escapes
-   unescape_sub          => undef,
-   unescape_quote_regexp => qr/\Z.\A/,
+   unescape_translation => [],
+
+   pos_translation => [
+      [qr/.?/, 'X+1'],
+   ],
 
    delimiter_placement => {
       HH => '::',
    },
 
-   pos_translation => {
-      '#DEFAULT#' => 'X+1',
-   },
-
-   array_step_sprintf       => '',
-   hash_step_sprintf        => '%s',
-   hash_step_sprintf_quoted => '%s',
-   quote_on_regexp          => qr/\Z.\A/,  # no-op; quoting not supported
-
-   escape_sub       => undef,
-   escape_on_regexp => qr/\Z.\A/,
+   array_key_sprintf        => '',
+   hash_key_stringification => [
+      [qr/.?/, '%s'],
+   ],
 } }
 
 42;
@@ -57,30 +53,26 @@ __END__
 
 = SYNOPSIS
 
-   # code
+   use v5.14;
+   use Parse::Path;
+
+   my $path = Parse::Path->new(
+      path  => 'Parse::Path',
+      style => 'PerlClassUTF8',
+   );
+
+   say $path->as_string;
+   $path->push($step, 'ʻNIGHTMäREʼ::ʺ'ﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ');
+   say $path->as_string;
 
 = DESCRIPTION
 
-### Ruler ##################################################################################################################################12345
+This is a path style for Perl classes with full UTF8 support.  Perl 5.14 is required to use this style, as this uses
+[special UTF8 character classes|http://www.learning-perl.com/2011/07/matching-perl-identifiers-is-a-lot-harder-now/].  Some examples:
 
-Insert description here...
-
-= CAVEATS
-
-### Ruler ##################################################################################################################################12345
-
-Bad stuff...
-
-= SEE ALSO
-
-### Ruler ##################################################################################################################################12345
-
-Other modules...
-
-= ACKNOWLEDGEMENTS
-
-### Ruler ##################################################################################################################################12345
-
-Thanks and stuff...
+   Perl::Class
+   overload::pragma
+   K2P'Foo'Bar'Baz
+   K2P'Class::Fun
 
 =end wikidoc

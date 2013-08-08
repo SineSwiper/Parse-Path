@@ -453,4 +453,8 @@ with certain modules that would use these paths.  In Perl, these two arrays woul
 This can be mitigated by making sure the Path style you use will limit the total digits for array indexes.  [Parse::Path] handles
 this on all of its paths, but it's something to be aware of if you create your own path classes.
 
+= SEE ALSO
+
+[Data::SplitSerializer] - Uses this module for path parsing
+
 =end wikidoc

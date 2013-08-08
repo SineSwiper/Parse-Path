@@ -63,12 +63,12 @@ $opts = { auto_normalize => 1 };
 
 test_pathing($opts,
    [
-      q{"This can't be a terrible mistake"[0].value},
-      q{'"Oh, but it can..." said the spider'.[0].value},
+      q{'This can\'t be a terrible mistake'[0].value},
+      q{"\"Oh, but it can...\" said the spider".[0].value},
    ],
    [
       q{"This can't be a terrible mistake"[0].value},
-      q{"\"Oh, but it can...\" said the spider"[0].value},
+      q{'"Oh, but it can..." said the spider'[0].value},
    ],
    'Quoted with normalize',
 );
@@ -78,7 +78,7 @@ test_pathing($opts,
       'a.b...c[0].""."".' . "''",
    ],
    [
-      'a.b.""."".c[0].""."".""',
+      "a.b.''.''.c[0].''.''.''",
    ],
    'Zero-length keys with normalize',
 );

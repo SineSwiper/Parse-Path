@@ -27,28 +27,24 @@ sub _build_blueprint { {
    delimiter_regexp    => qr{/+},     # + to capture repetitive slashes, like foo////bar
 
    # no support for escapes
-   unescape_sub          => undef,
-   unescape_quote_regexp => qr/\Z.\A/,
+   unescape_translation => [],
+
+   pos_translation => [
+      [qr{^/+$},     0],
+      [qr{^\.\./*$}, 'X-1'],
+      [qr{^\./*$},   'X-0'],
+      [qr{.?},       'X+1'],
+   ],
 
    delimiter_placement => {
       '0R' => '/',
       HH   => '/',
    },
 
-   pos_translation => {
-      qr{^/+$}     => 0,
-      qr{^\.\./*$} => 'X-1',
-      qr{^\./*$}   => 'X-0',
-      '#DEFAULT#'  => 'X+1',
-   },
-
-   array_step_sprintf       => '',
-   hash_step_sprintf        => '%s',
-   hash_step_sprintf_quoted => '%s',
-   quote_on_regexp          => qr/\Z.\A/,  # no-op; quoting not supported
-
-   escape_sub       => undef,
-   escape_on_regexp => qr/\Z.\A/,
+   array_key_sprintf        => '',
+   hash_key_stringification => [
+      [qr/.?/, '%s'],
+   ],
 } }
 
 42;
@@ -59,30 +55,31 @@ __END__
 
 = SYNOPSIS
 
-   # code
+   use v5.10;
+   use Parse::Path;
+
+   my $path = Parse::Path->new(
+      path  => '/root/.cpan',
+      style => 'File::Unix',
+   );
+
+   say $path->as_string;
+   $path->push($step, 'FTPstats.yml');
+   say $path->as_string;
 
 = DESCRIPTION
 
-### Ruler ##################################################################################################################################12345
+This is a file-based path style for *nix paths.  Some examples:
 
-Insert description here...
+   /etc/foobar.conf
+   /home/bbyrd/foo/bar.txt
+   ../..///.././aaa/.///bbb/ccc/../ddd
+   foo/bar/../baz
+   var/log/turnip.log
 
-= CAVEATS
+Arrays are, of course, not supported.  Neither is quoting, as that is a product of the shell, not the path itself.
 
-### Ruler ##################################################################################################################################12345
-
-Bad stuff...
-
-= SEE ALSO
-
-### Ruler ##################################################################################################################################12345
-
-Other modules...
-
-= ACKNOWLEDGEMENTS
-
-### Ruler ##################################################################################################################################12345
-
-Thanks and stuff...
+Absolute paths will contain a blank first step, a la [Path::Class].  Though, it is recommended to use
+[is_absolute|Parse::Path/is_absolute] for checking for path relativity.
 
 =end wikidoc

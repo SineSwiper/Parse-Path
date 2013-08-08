@@ -8,7 +8,7 @@ package Parse::Path::Role::Path;
 
 use Moo::Role;
 use MooX::ClassAttribute;
-use Types::Standard qw(Dict Bool Str Int Enum ArrayRef HashRef RegexpRef CodeRef Maybe);
+use Types::Standard qw(Dict Bool Str Int Enum ArrayRef HashRef RegexpRef CodeRef Tuple Maybe Optional);
 
 use sanity;
 
@@ -110,19 +110,14 @@ class_has _blueprint => (
       array_step_regexp => RegexpRef,
       delimiter_regexp  => RegexpRef,
 
-      unescape_sub          => Maybe[CodeRef],
-      unescape_quote_regexp => RegexpRef,
+      unescape_translation => ArrayRef[Tuple[RegexpRef, CodeRef]],
+      pos_translation      => ArrayRef[Tuple[RegexpRef, Str]],
 
       delimiter_placement => HashRef[Str],
-      pos_translation     => HashRef[Str],
 
-      array_step_sprintf       => Str,
-      hash_step_sprintf        => Str,
-      hash_step_sprintf_quoted => Str,
-      quote_on_regexp          => RegexpRef,
+      array_key_sprintf => Str,
 
-      escape_sub       => Maybe[CodeRef],
-      escape_on_regexp => RegexpRef,
+      hash_key_stringification => ArrayRef[Tuple[RegexpRef, Str, Optional[CodeRef]]]
    ],
 );
 
@@ -463,19 +458,21 @@ sub key2hash {
       unless ($type =~ /^HASH$|^ARRAY$/);
 
    my $bp = $self->_blueprint;
+   my $hash_bp  = $bp->{hash_key_stringification};
    my $hash_re  = $bp->{hash_step_regexp};
    my $array_re = $bp->{array_step_regexp};
 
    # Transform the key to a string step
    my $step = $key;
    if ($type eq 'HASH') {
-      $step = $bp->{escape_sub}->($step) if ($bp->{escape_sub} and $step =~ $bp->{escape_on_regexp});
-      $step = sprintf ($bp->{
-         'hash_step_sprintf'.($step =~ $bp->{quote_on_regexp} ? '_quoted' : '')
-      }, $step);
+      my $tuple = first { $step =~ $_->[0] } @$hash_bp;
+      die "Cannot match stringification for hash step; hash_step_stringification is not setup right!" unless $tuple;
+
+      $step = $tuple->[2]->($step) if $tuple->[2];
+      $step = sprintf ($tuple->[1], $step);
    }
    else {
-      $step = sprintf ($bp->{array_step_sprintf}, $step);
+      $step = sprintf ($bp->{array_key_sprintf}, $step);
    }
 
    # Validate the new step
@@ -515,10 +512,11 @@ sub _find_pos {
 
    # Find a matching pos key
    my $dt = $self->_blueprint->{pos_translation};
-   my $re = first { $_ ne '#DEFAULT#' && $step_plus_delimiter =~ /$_/; } (keys %$dt);
-   $re //= '#DEFAULT#';
 
-   return $dt->{$re};
+   my $tuple = first { $step_plus_delimiter =~ $_->[0] } @$dt;
+   die "Cannot match a position for step; pos_translation is not setup right!" unless $tuple;
+
+   return $tuple->[1];
 }
 
 sub shift_path_str {
@@ -547,9 +545,10 @@ sub shift_path_str {
          step => $+{step},
       };
 
-      # Support escaping via double quotes
-      $step_hash->{key} = $bp->{unescape_sub}->($step_hash->{key})
-         if ($bp->{unescape_sub} and $+{quote} =~ $bp->{unescape_quote_regexp});
+      # Support quote escaping
+      my $ut = $self->_blueprint->{unescape_translation};
+      my $tuple = first { $+{quote} =~ $_->[0] } @$ut;
+      $step_hash->{key} = $tuple->[1]->($step_hash->{key}) if defined $tuple;
    }
    else {
       die sprintf( "Found unparsable step: '%s'", $$pathref );
@@ -624,25 +623,21 @@ __END__
       array_step_regexp => qr/\[(?<key>\d{1,5})\]/,
       delimiter_regexp  => qr/(?:\.|(?=\[))/,
 
-      unescape_sub          => undef,
-      unescape_quote_regexp => qr/\Z.\A/,
+      unescape_translation => [],
+
+      pos_translation => [
+         [qr/.?/, 'X+1'],
+      ],
 
       delimiter_placement => {
          HH => '.',
          AH => '.',
       },
 
-      pos_translation => {
-         '#DEFAULT#' => 'X+1',
-      },
-
-      array_step_sprintf       => '[%u]',
-      hash_step_sprintf        => '%s',
-      hash_step_sprintf_quoted => '"%s"',
-      quote_on_regexp          => qr/\W|^$/,
-
-      escape_sub       => undef,
-      escape_on_regexp => qr/\Z.\A/,
+      array_key_sprintf        => '[%u]',
+      hash_key_stringification => [
+         [qr/.?/, '%s'],
+      ],
    } }
 
 = DESCRIPTION
@@ -652,33 +647,92 @@ get by with a single blueprint and little to no changes to the main methods.
 
 = BLUEPRINT
 
-The blueprint [class attribute|MooX::ClassAttribute] is a hashref of various properties that detail how the path is parsed and put
-back together.  All properties are required, though some can be turned off.
+The blueprint [class attribute|MooX::ClassAttribute] is a hashref of various properties (built using {_build_blueprint}) that detail
+how the path is parsed and put back together.  All properties are required, though some can be turned off.
 
-== hash_step_regexp
+== Path parsing
+
+=== hash_step_regexp
 
    hash_step_regexp => qr/(?<key>\w+)|(?<quote>")(?<key>[^"]+)(?<quote>")/
 
-== array_step_regexp
+Regular expression for parsing a hash step.  This should be a compiled RE, with a named capture called {key}.  Optionally, a {quote}
+capture can be added for quoting capabilities.
+
+Zero-length strings are acceptable if the RE allows for it.  In some cases, ZLS are needed for root paths, ie: a delimiter as the
+first character of a path.
+
+Beginning/ending markers should not be used, as they will be applied as needed.
+
+=== array_step_regexp
 
    array_step_regexp => qr/\[(?<key>\d{1,5})\]/
    array_step_regexp => qr/\Z.\A/   # no-op; turn off array support
 
-== delimiter_regexp
+Regular expression for parsing an array step.  This should be a compiled RE, with a named capture called {key}.  Non-digits are not
+recommended, and really don't make sense in the scope of an array.  Also, the RE should have some sort of digit limit to prevent
+overly sparse arrays.  (See [Parse::Path/Sparse arrays and memory usage].)
+
+Arrays are checked first, as hashs could have zero-length strings.  Arrays should *not* have zero-length strings, since they should
+match some sort of digit.
+
+Paths that don't use arrays still require a RE, but can use a no-op like the one above.
+
+=== delimiter_regexp
 
    delimiter_regexp => qr/(?:\.|(?=\[))/
 
-== unescape_sub
+Regular expression for parsing path delimiter.  This is always parsed after the hash/array step.
 
-   unescape_sub => \&String::Escape::unbackslash
-   unescape_sub => undef  # turn off unescape support
+=== unescape_translation
 
-== unescape_quote_regexp
+   unescape_translation => [
+      [qr/\"/, \&String::Escape::unbackslash],
+      [qr/\'/, sub { my $str = $_[0]; $str =~ s|\\([\'\\])|$1|g; $str; }],
+   ],
 
-   unescape_quote_regexp => qr/\"/
-   unescape_quote_regexp => qr/\Z.\A/  # no-op; turn off unescape support
+   unescape_translation => []  # turn off unescape support
 
-== delimiter_placement
+Arrayref-of-arrayrefs used to unescape special characters in a key.  Acts like a hashref, but is protected from Regexp
+stringification.  The first value is a regular expression matching the {quote} capture (from [/hash_step_regexp]).  The value is a
+coderef of a subroutine that unescapes the string, as a single parameter in and out.
+
+As this is a "hashref", multiple subs are supported.  This is useful for allowing single quotes in literal strings (with a smaller
+subset of escape characters) and double quotes in strings that allow full escaping.
+
+If quotes and escapes are used, the [/hash_step_regexp] needs to be smart enough to handle all cases of quote escaping.  (See the
+code in [Parse::Path::DZIL] for an example.)
+
+Unescape support can be turned off by using an empty array.  (But, the blueprint key still needs to exist.)
+
+=== pos_translation
+
+   pos_translation => [
+      [qr{^/+$},     0],
+      [qr{^\.\./*$}, 'X-1'],
+      [qr{^\./*$},   'X-0'],
+      [qr{.?},       'X+1'],
+   ],
+
+Arrayref-of-arrayrefs used for pos translation.  Acts like a hashref, but is protected from Regexp stringification.  These are the
+absolute and relative identifers of the path.  The "key" is a regular expression matching both the path step and right-side delimiter
+(extracted from [shift_path_str|Parse::Path/shift_path_str]).
+
+The value meanings are as follows:
+
+   X+# = Forward relative path
+   X-0 = Stationary relative path (like . for file-based paths)
+   X-# = Backward relative path
+   #   = Absolute path (# = step position)
+
+One of these REs *must* match, or the parser will die when it finds one it can't parse.  Thus, it's advisable to have a "default"
+RE like {qr/.?/}.
+
+If the path doesn't have relative/absolute steps, it should be defined with a default of {X+1}.
+
+== Path stringification
+
+=== delimiter_placement
 
    delimiter_placement => {
       '0R' => '/',
@@ -686,51 +740,45 @@ back together.  All properties are required, though some can be turned off.
       AH   => '.',
    },
 
-== pos_translation
+Hashref used for delimiter placement.  The keys have the following meanings:
 
-   pos_translation => {
-      qr{^/+$}     => 0,
-      qr{^\.\./*$} => 'X-1',
-      qr{^\./*$}   => 'X-0',
-      '#DEFAULT#'  => 'X+1',
-   },
+    ##[LR]   = Position-specific placement, either on the left or right side of the step.
+               Position can also be '-1' for the end of the path.
 
-== array_step_sprintf
+    [AH][AH] = Type-specific placement in-between the two types (ie: AH means an array on the left side
+               and a hash on the right).
 
-   array_step_sprintf => '[%u]'
-   array_step_sprintf => ''  # turn off array support
+    [AH]     = Type-specific placement for the end of the path.
 
-== hash_step_sprintf
+The value is the delimiter used in the placement.
 
-   hash_step_sprintf => '%s'
+=== array_key_sprintf
 
-== hash_step_sprintf_quoted
+   array_key_sprintf => '[%u]'
+   array_key_sprintf => ''  # turn off array support
 
-   hash_step_sprintf_quoted => '"%s"'
-   hash_step_sprintf_quoted => '%s'  # no quoting
+String for [sprintf|http://perldoc.perl.org/functions/sprintf.html] that stringifies an array key to a step in the path.
 
-== quote_on_regexp
+=== hash_key_stringification
 
-   quote_on_regexp => qr/\W|^$/
-   quote_on_regexp => qr/\Z.\A/  # no-op; turn off quoting
+   hash_key_stringification => [
+      [qr/[^\"]+/, '"%s"' => \&String::Escape::backslash],
+      [qr/\W|^$/,  "'%s'" => sub { my $str = $_[0]; $str =~ s|([\'\\])|\\$1|g; $str; }],
+      [qr/.?/,     '%s'],
+   ],
 
-== escape_sub
+Arrayref-of-arrayrefs used for stringification of a hash key to a step in the path.  The internal arrayref is composed of three
+pieces:
 
-   escape_sub => \&String::Escape::backslash
-   escape_sub => undef  # turn off escape support
+   1 => RegexpRef = Matched against the hash key
+   2 => Str       = String for sprintf used for stringification
+   3 => CodeRef   = (Optional) Sub used to transform key prior to sprintf call
 
-== escape_on_regexp
-
-   escape_on_regexp => qr/\W|^$/
-   escape_on_regexp => qr/\Z.\A/  # no-op; turn off escape support
+The third piece is typically used for backslashification.  Using multiple REs, you can add in different conditions for different
+kinds of quoting.
 
 = CAVEATS
 
-
-= SEE ALSO
-
-### Ruler ########################################################################################################################12345
-
-Other modules...
+See [Parse::Path/CAVEATS].
 
 =end wikidoc

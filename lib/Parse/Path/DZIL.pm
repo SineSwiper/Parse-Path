@@ -41,25 +41,26 @@ sub _build_blueprint { {
    array_step_regexp   => qr/\[(?<key>\d{1,5})\]/,
    delimiter_regexp    => qr/(?:\.|(?=\[))/,
 
-   unescape_sub          => \&String::Escape::unbackslash,
-   unescape_quote_regexp => qr/\"/,
+   unescape_translation => [
+      [qr/\"/ => \&String::Escape::unbackslash],
+      [qr/\'/ => sub { my $str = $_[0]; $str =~ s|\\([\'\\])|$1|g; $str; }],
+   ],
+   pos_translation => [
+      [qr/.?/, 'X+1'],
+   ],
 
    delimiter_placement => {
       HH => '.',
       AH => '.',
    },
 
-   pos_translation => {
-      '#DEFAULT#' => 'X+1',
-   },
-
-   array_step_sprintf       => '[%u]',
-   hash_step_sprintf        => '%s',
-   hash_step_sprintf_quoted => '"%s"',
-   quote_on_regexp          => qr/\W|^$/,
-
-   escape_sub       => \&String::Escape::backslash,
-   escape_on_regexp => qr/\W|^$/,
+   array_key_sprintf        => '[%u]',
+   hash_key_stringification => [
+      [qr/[\x00-\x1f\']/,
+                  '"%s"' => \&String::Escape::backslash],
+      [qr/\W|^$/, "'%s'" => sub { my $str = $_[0]; $str =~ s|([\'\\])|\\$1|g; $str; }],
+      [qr/.?/,    '%s'],
+   ],
 } }
 
 42;
@@ -70,30 +71,29 @@ __END__
 
 = SYNOPSIS
 
-   # code
+   use v5.10;
+   use Parse::Path;
+
+   my $path = Parse::Path->new(
+      path  => 'gophers[0].food.count',
+      style => 'DZIL',
+   );
+
+   say $path->as_string;
+   $path->push($step, '[2]');
+   say $path->as_string;
 
 = DESCRIPTION
 
-### Ruler ##################################################################################################################################12345
+This path style is used for advanced [Dist::Zilla] INI parsing.  It's the reason why this distribution (and related modules) were
+created.
 
-Insert description here...
+Support is available for both hash and array steps, including quoted hash steps.  Some examples:
 
-= CAVEATS
+   gophers[0].food.type
+   "Drink more milk".[3][0][0]."and enjoy it!"
+   'foo bar baz'[0]."\"Escaping works, too\""
 
-### Ruler ##################################################################################################################################12345
-
-Bad stuff...
-
-= SEE ALSO
-
-### Ruler ##################################################################################################################################12345
-
-Other modules...
-
-= ACKNOWLEDGEMENTS
-
-### Ruler ##################################################################################################################################12345
-
-Thanks and stuff...
+DZIL paths do not have relativity.  They are all relative.
 
 =end wikidoc
