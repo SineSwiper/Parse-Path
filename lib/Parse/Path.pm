@@ -60,7 +60,7 @@ __END__
 
    my $step = $path->shift;  # { key => 'count', ... }
    say $path->as_string;
-   $path->push($step, '[2]');
+   $path->push($path, '[2]');
 
    foreach my $p (@$path) {
       say sprintf('%-6s %s --> %s', @$p{qw(type step key)});

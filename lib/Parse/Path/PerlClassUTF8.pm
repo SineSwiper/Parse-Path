@@ -54,6 +54,7 @@ __END__
 = SYNOPSIS
 
    use v5.14;
+   use utf8;
    use Parse::Path;
 
    my $path = Parse::Path->new(
@@ -62,7 +63,7 @@ __END__
    );
 
    say $path->as_string;
-   $path->push($step, 'ʻNIGHTMäREʼ::ʺ'ﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ');
+   $path->push($path, qw[ ʻNIGHTMäREʼ::ʺ'ﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ ]);
    say $path->as_string;
 
 = DESCRIPTION

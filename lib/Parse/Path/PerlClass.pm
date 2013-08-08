@@ -47,6 +47,8 @@ sub _build_blueprint { {
 
 __END__
 
+=begin wikidoc
+
 = SYNOPSIS
 
    use v5.10;
@@ -58,7 +60,7 @@ __END__
    );
 
    say $path->as_string;
-   $path->push($step, 'Role::Path');
+   $path->push($path, 'Role::Path');
    say $path->as_string;
 
 = DESCRIPTION

@@ -64,7 +64,7 @@ __END__
    );
 
    say $path->as_string;
-   $path->push($step, 'FTPstats.yml');
+   $path->push($path, 'FTPstats.yml');
    say $path->as_string;
 
 = DESCRIPTION

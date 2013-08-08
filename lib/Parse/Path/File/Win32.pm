@@ -106,7 +106,7 @@ __END__
    );
 
    say $path->as_string;
-   $path->push($step, 'DRIVERS');
+   $path->push($path, 'DRIVERS');
    say $path->as_string;
 
    $path->volume('D');

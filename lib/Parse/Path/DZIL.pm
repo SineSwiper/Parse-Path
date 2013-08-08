@@ -80,7 +80,7 @@ __END__
    );
 
    say $path->as_string;
-   $path->push($step, '[2]');
+   $path->push($path, '[2]');
    say $path->as_string;
 
 = DESCRIPTION
