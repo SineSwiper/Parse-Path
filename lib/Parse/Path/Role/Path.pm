@@ -728,6 +728,9 @@ The value meanings are as follows:
 One of these REs *must* match, or the parser will die when it finds one it can't parse.  Thus, it's advisable to have a "default"
 RE like {qr/.?/}.
 
+Don't assume the RHS delimiter is going to be there.  There may be cases where it's missing (like if [key2hash|Parse::Path/key2hash]
+was not passed a {pos}).
+
 If the path doesn't have relative/absolute steps, it should be defined with a default of {X+1}.
 
 == Path stringification
