@@ -1,6 +1,6 @@
 package Parse::Path::File::Win32;
 
-our $VERSION = '0.90'; # VERSION
+our $VERSION = '0.91'; # VERSION
 # ABSTRACT: C:\Windows\file\path\support
 
 #############################################################################
@@ -171,7 +171,7 @@ site near you, or see L<https://metacpan.org/module/Parse::Path/>.
 
 =head1 AUTHOR
 
-Brendan Byrd <BBYRD@CPAN.org>
+Brendan Byrd <bbyrd@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 

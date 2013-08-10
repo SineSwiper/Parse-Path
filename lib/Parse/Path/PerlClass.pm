@@ -1,6 +1,6 @@
 package Parse::Path::PerlClass;
 
-our $VERSION = '0.90'; # VERSION
+our $VERSION = '0.91'; # VERSION
 # ABSTRACT: Perl::Class::path::support
 
 #############################################################################
@@ -88,7 +88,7 @@ site near you, or see L<https://metacpan.org/module/Parse::Path/>.
 
 =head1 AUTHOR
 
-Brendan Byrd <BBYRD@CPAN.org>
+Brendan Byrd <bbyrd@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 

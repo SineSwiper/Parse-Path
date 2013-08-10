@@ -1,12 +1,13 @@
 ---
 abstract: 'Parser for paths'
 author:
-  - 'Brendan Byrd <BBYRD@CPAN.org>'
+  - 'Brendan Byrd <bbyrd@cpan.org>'
 build_requires:
   Capture::Tiny: 0.01
   Test::CheckDeps: 0.006
   Test::More: 0.94
   Test::Most: 0.01
+  blib: 0
 dynamic_config: 0
 generated_by: 'Dist::Zilla version 4.300035, CPAN::Meta::Converter version 2.130880'
 license: artistic_2
@@ -23,25 +24,25 @@ no_index:
 provides:
   Parse::Path:
     file: lib/Parse/Path.pm
-    version: 0.90
+    version: 0.91
   Parse::Path::DZIL:
     file: lib/Parse/Path/DZIL.pm
-    version: 0.90
+    version: 0.91
   Parse::Path::File::Unix:
     file: lib/Parse/Path/File/Unix.pm
-    version: 0.90
+    version: 0.91
   Parse::Path::File::Win32:
     file: lib/Parse/Path/File/Win32.pm
-    version: 0.90
+    version: 0.91
   Parse::Path::PerlClass:
     file: lib/Parse/Path/PerlClass.pm
-    version: 0.90
+    version: 0.91
   Parse::Path::PerlClassUTF8:
     file: lib/Parse/Path/PerlClassUTF8.pm
-    version: 0.90
+    version: 0.91
   Parse::Path::Role::Path:
     file: lib/Parse/Path/Role/Path.pm
-    version: 0.90
+    version: 0.91
 requires:
   List::AllUtils: 0.01
   Module::Runtime: 0.006
@@ -58,7 +59,7 @@ resources:
   bugtracker: https://github.com/SineSwiper/Parse-Path/issues
   homepage: https://github.com/SineSwiper/Parse-Path/wiki
   repository: git://github.com/SineSwiper/Parse-Path.git
-version: 0.90
+version: 0.91
 x_Dist_Zilla:
   perl:
     version: 5.014002
@@ -127,16 +128,6 @@ x_Dist_Zilla:
       class: Dist::Zilla::Plugin::ExecDir
       name: '@Author::BBYRD/ExecDir'
       version: 4.300035
-    -
-      class: Dist::Zilla::Plugin::Test::Compile
-      config:
-        Dist::Zilla::Plugin::Test::Compile:
-          module_finder:
-            - ':InstallModules'
-          script_finder:
-            - ':ExecFiles'
-      name: '@Author::BBYRD/Test::Compile'
-      version: 2.018
     -
       class: Dist::Zilla::Plugin::PodSyntaxTests
       name: '@Author::BBYRD/PodSyntaxTests'
@@ -286,6 +277,16 @@ x_Dist_Zilla:
       name: PrereqsClean
       version: 0.92
     -
+      class: Dist::Zilla::Plugin::Test::Compile
+      config:
+        Dist::Zilla::Plugin::Test::Compile:
+          module_finder:
+            - ':InstallModules'
+          script_finder:
+            - ':ExecFiles'
+      name: Test::Compile
+      version: 2.018
+    -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':InstallModules'
       version: 4.300035
@@ -314,5 +315,3 @@ x_Dist_Zilla:
     config:
       is_trial: 0
     version: 4.300035
-x_contributors:
-  - 'Brendan Byrd <bbyrd@cpan.org>'

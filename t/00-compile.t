@@ -15,7 +15,6 @@ Parse/Path/DZIL.pm
 Parse/Path/File/Unix.pm
 Parse/Path/File/Win32.pm
 Parse/Path/PerlClass.pm
-Parse/Path/PerlClassUTF8.pm
 Parse/Path/Role/Path.pm
 );
 

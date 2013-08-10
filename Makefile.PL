@@ -10,7 +10,7 @@ use ExtUtils::MakeMaker 6.30;
 
 my %WriteMakefileArgs = (
   "ABSTRACT" => "Parser for paths",
-  "AUTHOR" => "Brendan Byrd <BBYRD\@CPAN.org>",
+  "AUTHOR" => "Brendan Byrd <bbyrd\@cpan.org>",
   "BUILD_REQUIRES" => {},
   "CONFIGURE_REQUIRES" => {},
   "DISTNAME" => "Parse-Path",
@@ -32,9 +32,10 @@ my %WriteMakefileArgs = (
     "Capture::Tiny" => "0.01",
     "Test::CheckDeps" => "0.006",
     "Test::More" => "0.94",
-    "Test::Most" => "0.01"
+    "Test::Most" => "0.01",
+    "blib" => 0
   },
-  "VERSION" => "0.90",
+  "VERSION" => "0.91",
   "test" => {
     "TESTS" => "t/*.t"
   }

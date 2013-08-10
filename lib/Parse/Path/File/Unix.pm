@@ -1,6 +1,6 @@
 package Parse::Path::File::Unix;
 
-our $VERSION = '0.90'; # VERSION
+our $VERSION = '0.91'; # VERSION
 # ABSTRACT: /UNIX/file/path/support
 
 #############################################################################
@@ -98,7 +98,7 @@ site near you, or see L<https://metacpan.org/module/Parse::Path/>.
 
 =head1 AUTHOR
 
-Brendan Byrd <BBYRD@CPAN.org>
+Brendan Byrd <bbyrd@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 

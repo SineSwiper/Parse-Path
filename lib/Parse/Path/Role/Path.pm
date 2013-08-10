@@ -1,6 +1,6 @@
 package Parse::Path::Role::Path;
 
-our $VERSION = '0.90'; # VERSION
+our $VERSION = '0.91'; # VERSION
 # ABSTRACT: Role for paths
 
 #############################################################################
@@ -734,6 +734,9 @@ The value meanings are as follows:
 One of these REs B<must> match, or the parser will die when it finds one it can't parse.  Thus, it's advisable to have a "default"
 RE like C<<< qr/.?/ >>>.
 
+Don't assume the RHS delimiter is going to be there.  There may be cases where it's missing (like if L<key2hash|Parse::Path/key2hash>
+was not passed a C<<< pos >>>).
+
 If the path doesn't have relativeE<sol>absolute steps, it should be defined with a default of C<<< X+1 >>>.
 
 =head2 Path stringification
@@ -797,7 +800,7 @@ site near you, or see L<https://metacpan.org/module/Parse::Path/>.
 
 =head1 AUTHOR
 
-Brendan Byrd <BBYRD@CPAN.org>
+Brendan Byrd <bbyrd@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 

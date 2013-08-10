@@ -1,6 +1,16 @@
 Revision History for Parse-Path
 ===============================
 
+v0.91 2013-08-09
+----------------
+
+commit c789276058d7e458ab16dbd150df41bf7ad38731
+Author: Brendan Byrd <Perl@ResonatorSoft.org>
+Date:   Fri Aug 9 22:15:10 2013 -0400
+
+    Fix 00-compile.t to skip PerlClassUTF8
+    Add small note in Role docs about pos_translation and missing delimiters
+
 ===================================
 End of changes in the last 365 days
 ===================================

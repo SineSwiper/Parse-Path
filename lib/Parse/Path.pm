@@ -1,6 +1,6 @@
 package Parse::Path;
 
-our $VERSION = '0.90'; # VERSION
+our $VERSION = '0.91'; # VERSION
 # ABSTRACT: Parser for paths
 
 #############################################################################
@@ -497,10 +497,6 @@ You can connect to the server at 'irc.perl.org' and talk to this person for help
 Please report any bugs or feature requests via L<https://github.com/SineSwiper/Parse-Path/issues>.
 
 =head1 AUTHOR
-
-Brendan Byrd <BBYRD@CPAN.org>
-
-=head1 CONTRIBUTOR
 
 Brendan Byrd <bbyrd@cpan.org>
 

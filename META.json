@@ -1,7 +1,7 @@
 {
    "abstract" : "Parser for paths",
    "author" : [
-      "Brendan Byrd <BBYRD@CPAN.org>"
+      "Brendan Byrd <bbyrd@cpan.org>"
    ],
    "dynamic_config" : 0,
    "generated_by" : "Dist::Zilla version 4.300035, CPAN::Meta::Converter version 2.130880",
@@ -46,38 +46,39 @@
             "Capture::Tiny" : "0.01",
             "Test::CheckDeps" : "0.006",
             "Test::More" : "0.94",
-            "Test::Most" : "0.01"
+            "Test::Most" : "0.01",
+            "blib" : "0"
          }
       }
    },
    "provides" : {
       "Parse::Path" : {
          "file" : "lib/Parse/Path.pm",
-         "version" : "0.90"
+         "version" : "0.91"
       },
       "Parse::Path::DZIL" : {
          "file" : "lib/Parse/Path/DZIL.pm",
-         "version" : "0.90"
+         "version" : "0.91"
       },
       "Parse::Path::File::Unix" : {
          "file" : "lib/Parse/Path/File/Unix.pm",
-         "version" : "0.90"
+         "version" : "0.91"
       },
       "Parse::Path::File::Win32" : {
          "file" : "lib/Parse/Path/File/Win32.pm",
-         "version" : "0.90"
+         "version" : "0.91"
       },
       "Parse::Path::PerlClass" : {
          "file" : "lib/Parse/Path/PerlClass.pm",
-         "version" : "0.90"
+         "version" : "0.91"
       },
       "Parse::Path::PerlClassUTF8" : {
          "file" : "lib/Parse/Path/PerlClassUTF8.pm",
-         "version" : "0.90"
+         "version" : "0.91"
       },
       "Parse::Path::Role::Path" : {
          "file" : "lib/Parse/Path/Role/Path.pm",
-         "version" : "0.90"
+         "version" : "0.91"
       }
    },
    "release_status" : "stable",
@@ -93,7 +94,7 @@
       },
       "x_irc" : "irc://irc.perl.org/#web-simple"
    },
-   "version" : "0.90",
+   "version" : "0.91",
    "x_Dist_Zilla" : {
       "perl" : {
          "version" : "5.014002"
@@ -178,21 +179,6 @@
             "class" : "Dist::Zilla::Plugin::ExecDir",
             "name" : "@Author::BBYRD/ExecDir",
             "version" : "4.300035"
-         },
-         {
-            "class" : "Dist::Zilla::Plugin::Test::Compile",
-            "config" : {
-               "Dist::Zilla::Plugin::Test::Compile" : {
-                  "module_finder" : [
-                     ":InstallModules"
-                  ],
-                  "script_finder" : [
-                     ":ExecFiles"
-                  ]
-               }
-            },
-            "name" : "@Author::BBYRD/Test::Compile",
-            "version" : "2.018"
          },
          {
             "class" : "Dist::Zilla::Plugin::PodSyntaxTests",
@@ -380,6 +366,21 @@
             "version" : "0.92"
          },
          {
+            "class" : "Dist::Zilla::Plugin::Test::Compile",
+            "config" : {
+               "Dist::Zilla::Plugin::Test::Compile" : {
+                  "module_finder" : [
+                     ":InstallModules"
+                  ],
+                  "script_finder" : [
+                     ":ExecFiles"
+                  ]
+               }
+            },
+            "name" : "Test::Compile",
+            "version" : "2.018"
+         },
+         {
             "class" : "Dist::Zilla::Plugin::FinderCode",
             "name" : ":InstallModules",
             "version" : "4.300035"
@@ -417,9 +418,6 @@
          },
          "version" : "4.300035"
       }
-   },
-   "x_contributors" : [
-      "Brendan Byrd <bbyrd@cpan.org>"
-   ]
+   }
 }
 
