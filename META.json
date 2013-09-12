@@ -4,7 +4,7 @@
       "Brendan Byrd <bbyrd@cpan.org>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Dist::Zilla version 4.300035, CPAN::Meta::Converter version 2.130880",
+   "generated_by" : "Dist::Zilla version 4.300038, CPAN::Meta::Converter version 2.130880",
    "license" : [
       "artistic_2"
    ],
@@ -32,7 +32,6 @@
             "List::AllUtils" : "0.01",
             "Module::Runtime" : "0.006",
             "Moo" : "0.009001",
-            "MooX::ClassAttribute" : "0.001",
             "String::Escape" : "2010.002",
             "Sub::Name" : "0.03",
             "Types::Standard" : "0.001",
@@ -43,42 +42,42 @@
       },
       "test" : {
          "requires" : {
-            "Capture::Tiny" : "0.01",
+            "IO::Handle" : "0",
+            "IPC::Open3" : "0",
             "Test::CheckDeps" : "0.006",
             "Test::More" : "0.94",
-            "Test::Most" : "0.01",
-            "blib" : "0"
+            "Test::Most" : "0.01"
          }
       }
    },
    "provides" : {
       "Parse::Path" : {
          "file" : "lib/Parse/Path.pm",
-         "version" : "0.91"
+         "version" : "0.92"
       },
       "Parse::Path::DZIL" : {
          "file" : "lib/Parse/Path/DZIL.pm",
-         "version" : "0.91"
+         "version" : "0.92"
       },
       "Parse::Path::File::Unix" : {
          "file" : "lib/Parse/Path/File/Unix.pm",
-         "version" : "0.91"
+         "version" : "0.92"
       },
       "Parse::Path::File::Win32" : {
          "file" : "lib/Parse/Path/File/Win32.pm",
-         "version" : "0.91"
+         "version" : "0.92"
       },
       "Parse::Path::PerlClass" : {
          "file" : "lib/Parse/Path/PerlClass.pm",
-         "version" : "0.91"
+         "version" : "0.92"
       },
       "Parse::Path::PerlClassUTF8" : {
          "file" : "lib/Parse/Path/PerlClassUTF8.pm",
-         "version" : "0.91"
+         "version" : "0.92"
       },
       "Parse::Path::Role::Path" : {
          "file" : "lib/Parse/Path/Role/Path.pm",
-         "version" : "0.91"
+         "version" : "0.92"
       }
    },
    "release_status" : "stable",
@@ -94,7 +93,7 @@
       },
       "x_irc" : "irc://irc.perl.org/#web-simple"
    },
-   "version" : "0.91",
+   "version" : "0.92",
    "x_Dist_Zilla" : {
       "perl" : {
          "version" : "5.014002"
@@ -108,7 +107,7 @@
          {
             "class" : "Dist::Zilla::Plugin::MakeMaker",
             "name" : "@Author::BBYRD/MakeMaker",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::Git::NextVersion",
@@ -123,7 +122,7 @@
          {
             "class" : "Dist::Zilla::Plugin::OurPkgVersion",
             "name" : "@Author::BBYRD/OurPkgVersion",
-            "version" : "0.004000"
+            "version" : "0.005000"
          },
          {
             "class" : "Dist::Zilla::Plugin::PodWeaver",
@@ -133,7 +132,7 @@
          {
             "class" : "Dist::Zilla::Plugin::PruneCruft",
             "name" : "@Author::BBYRD/PruneCruft",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::GitFmtChanges",
@@ -143,17 +142,17 @@
          {
             "class" : "Dist::Zilla::Plugin::ManifestSkip",
             "name" : "@Author::BBYRD/ManifestSkip",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::Manifest",
             "name" : "@Author::BBYRD/Manifest",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::License",
             "name" : "@Author::BBYRD/License",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::ReadmeAnyFromPod",
@@ -178,12 +177,12 @@
          {
             "class" : "Dist::Zilla::Plugin::ExecDir",
             "name" : "@Author::BBYRD/ExecDir",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::PodSyntaxTests",
             "name" : "@Author::BBYRD/PodSyntaxTests",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::RunExtraTests",
@@ -198,7 +197,7 @@
          {
             "class" : "Dist::Zilla::Plugin::Test::EOL",
             "name" : "@Author::BBYRD/Test::EOL",
-            "version" : "0.07"
+            "version" : "0.08"
          },
          {
             "class" : "Dist::Zilla::Plugin::Test::CPAN::Meta::JSON",
@@ -248,22 +247,22 @@
          {
             "class" : "Dist::Zilla::Plugin::MetaConfig",
             "name" : "@Author::BBYRD/MetaConfig",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::MetaJSON",
             "name" : "@Author::BBYRD/MetaJSON",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::MetaYAML",
             "name" : "@Author::BBYRD/MetaYAML",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::MetaNoIndex",
             "name" : "@Author::BBYRD/MetaNoIndex",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::MetaProvides::Package",
@@ -328,17 +327,17 @@
          {
             "class" : "Dist::Zilla::Plugin::TestRelease",
             "name" : "@Author::BBYRD/TestRelease",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::ConfirmRelease",
             "name" : "@Author::BBYRD/ConfirmRelease",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::UploadToCPAN",
             "name" : "@Author::BBYRD/UploadToCPAN",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::InstallRelease",
@@ -353,7 +352,7 @@
          {
             "class" : "Dist::Zilla::Plugin::AutoPrereqs",
             "name" : "AutoPrereqs",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::MinimumPrereqs",
@@ -378,37 +377,37 @@
                }
             },
             "name" : "Test::Compile",
-            "version" : "2.018"
+            "version" : "2.029"
          },
          {
             "class" : "Dist::Zilla::Plugin::FinderCode",
             "name" : ":InstallModules",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::FinderCode",
             "name" : ":IncModules",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::FinderCode",
             "name" : ":TestFiles",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::FinderCode",
             "name" : ":ExecFiles",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::FinderCode",
             "name" : ":ShareFiles",
-            "version" : "4.300035"
+            "version" : "4.300038"
          },
          {
             "class" : "Dist::Zilla::Plugin::FinderCode",
             "name" : ":MainModule",
-            "version" : "4.300035"
+            "version" : "4.300038"
          }
       ],
       "zilla" : {
@@ -416,7 +415,7 @@
          "config" : {
             "is_trial" : "0"
          },
-         "version" : "4.300035"
+         "version" : "4.300038"
       }
    }
 }

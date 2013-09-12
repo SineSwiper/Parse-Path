@@ -21,7 +21,6 @@ my %WriteMakefileArgs = (
     "List::AllUtils" => "0.01",
     "Module::Runtime" => "0.006",
     "Moo" => "0.009001",
-    "MooX::ClassAttribute" => "0.001",
     "String::Escape" => "2010.002",
     "Sub::Name" => "0.03",
     "Types::Standard" => "0.001",
@@ -29,13 +28,13 @@ my %WriteMakefileArgs = (
     "sanity" => "0.91"
   },
   "TEST_REQUIRES" => {
-    "Capture::Tiny" => "0.01",
+    "IO::Handle" => 0,
+    "IPC::Open3" => 0,
     "Test::CheckDeps" => "0.006",
     "Test::More" => "0.94",
-    "Test::Most" => "0.01",
-    "blib" => 0
+    "Test::Most" => "0.01"
   },
-  "VERSION" => "0.91",
+  "VERSION" => "0.92",
   "test" => {
     "TESTS" => "t/*.t"
   }

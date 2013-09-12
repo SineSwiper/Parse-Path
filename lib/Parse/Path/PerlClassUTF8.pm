@@ -1,6 +1,6 @@
 package Parse::Path::PerlClassUTF8;
 
-our $VERSION = '0.91'; # VERSION
+our $VERSION = '0.92'; # VERSION
 # ABSTRACT: Perl::Class::path::support'with'ŮΤᖴ８
 
 #############################################################################

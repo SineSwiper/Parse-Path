@@ -1,6 +1,6 @@
 package Parse::Path::DZIL;
 
-our $VERSION = '0.91'; # VERSION
+our $VERSION = '0.92'; # VERSION
 # ABSTRACT: "dist.ini-style".paths.for.DZIL[0]
 
 #############################################################################
