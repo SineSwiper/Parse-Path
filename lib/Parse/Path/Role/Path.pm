@@ -7,7 +7,6 @@ package Parse::Path::Role::Path;
 # Modules
 
 use Moo::Role;
-use MooX::ClassAttribute;
 use Types::Standard qw(Dict Bool Str Int Enum ArrayRef HashRef RegexpRef CodeRef Tuple Maybe Optional);
 
 use sanity;
@@ -99,26 +98,33 @@ use overload
 
 requires '_build_blueprint';
 
-# Mainly for validation of class's blueprint
-class_has _blueprint => (
+# One-time validation for speed
+my $BLUEPRINT_VALIDATED = 0;
+my $_blueprint_type = Dict[
+   hash_step_regexp  => RegexpRef,
+   array_step_regexp => RegexpRef,
+   delimiter_regexp  => RegexpRef,
+
+   unescape_translation => ArrayRef[Tuple[RegexpRef, CodeRef]],
+   pos_translation      => ArrayRef[Tuple[RegexpRef, Str]],
+
+   delimiter_placement => HashRef[Str],
+
+   array_key_sprintf => Str,
+
+   hash_key_stringification => ArrayRef[Tuple[RegexpRef, Str, Optional[CodeRef]]]
+];
+
+has _blueprint => (
    is       => 'ro',
    builder  => '_build_blueprint',
    lazy     => 1,
    init_arg => undef,
-   isa      => Dict[
-      hash_step_regexp  => RegexpRef,
-      array_step_regexp => RegexpRef,
-      delimiter_regexp  => RegexpRef,
-
-      unescape_translation => ArrayRef[Tuple[RegexpRef, CodeRef]],
-      pos_translation      => ArrayRef[Tuple[RegexpRef, Str]],
-
-      delimiter_placement => HashRef[Str],
-
-      array_key_sprintf => Str,
-
-      hash_key_stringification => ArrayRef[Tuple[RegexpRef, Str, Optional[CodeRef]]]
-   ],
+   isa      => sub {
+      return 1 if $BLUEPRINT_VALIDATED;
+      $_blueprint_type->assert_valid($_[0]);
+      $BLUEPRINT_VALIDATED = 1;
+   },
 );
 
 #############################################################################
